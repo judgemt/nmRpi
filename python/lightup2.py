@@ -5,10 +5,12 @@ import time
 GPIO.setmode(GPIO.BCM)
 
 # Define Pins
-ledPin = 17
+ledPin = 13
+buttonPin = 17
 
 # Setup Pins
 GPIO.setup(ledPin, GPIO.OUT)
+GPIO.setup(buttonPin, GPIO.IN)
 # GPIO.setwarnings(False)
 
 # Modify Pins
