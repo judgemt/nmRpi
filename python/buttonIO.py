@@ -6,7 +6,7 @@ GPIO.setmode(GPIO.BCM)
 
 # Define Pins
 ledPin = 13
-buttonPin = 17
+buttonPin = 27
 
 # Setup Pins
 GPIO.setup(ledPin, GPIO.OUT)
