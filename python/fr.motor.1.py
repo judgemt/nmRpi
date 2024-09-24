@@ -80,60 +80,77 @@ pin_map = {
 
 class A4988Stepper:
     def __init__(self, pin_mappings, microstep_settings=(0, 0, 0)):
-        # Initialize pin mappings
         self.pins = pin_mappings
+        
+        # Set up GPIO
+        GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
+        for pin in self.pins.values():
+            GPIO.setup(pin, GPIO.OUT)
+            GPIO.output(pin, GPIO.LOW)  # Set all pins to LOW initially
 
-        # Set default microstepping mode (can be updated later)
+        # Set the initial microstepping mode
         self.set_microstepping(*microstep_settings)
 
-        # Initialize GPIO setup (assuming you use something like RPi.GPIO)
-        # for pin in self.pins.values():
-        #     GPIO.setup(pin, GPIO.OUT)
     def set_pins(self, pin_name, gpio_pin):
-        '''Update the GPIO pin for a specific A4988 pin.'''
+        """Update the GPIO pin for a specific A4988 pin and reconfigure it."""
         if pin_name in self.pins:
+            GPIO.setup(gpio_pin, GPIO.OUT)
+            GPIO.output(gpio_pin, GPIO.LOW)  # Set to LOW initially
             self.pins[pin_name] = gpio_pin
             print(f"Updated {pin_name} pin to GPIO {gpio_pin}")
         else:
             print(f"Error: {pin_name} is not a valid A4988 pin name.")
 
-    def set_microstepping(self, ms1, ms2, ms3):
+    def set_microstepping(self, ms1=None, ms2=None, ms3=None):
         """Set microstepping mode by adjusting MS1, MS2, MS3 pins."""
-        self.microstep_settings = (ms1, ms2, ms3)
-            # Stepsize  Full    Half    Quarter Eigth   Sixteenth
-            # MS1       low     high    low     high    high
-            # MS2       low     low     high    high    high
-            # MS3       low     low     low     low     high 
-        # GPIO.output(self.pins['MS1'], ms1)
-        # GPIO.output(self.pins['MS2'], ms2)
-        # GPIO.output(self.pins['MS3'], ms3)
-        print(f"Microstepping set to {self.microstep_settings}")
-
+        if ms1 is None and ms2 is None and ms3 is None:
+            # Print the help map
+            print("Microstepping Map:")
+            print("Stepsize   | MS1   | MS2   | MS3")
+            print("-----------|-------|-------|-------")
+            print("Full       | Low   | Low   | Low")
+            print("Half       | High  | Low   | Low")
+            print("Quarter    | Low   | High  | Low")
+            print("Eighth     | High  | High  | Low")
+            print("Sixteenth  | High  | High  | High")
+        else:
+            # Set the microstepping pins if arguments are provided
+            self.microstep_settings = (ms1, ms2, ms3)
+            GPIO.output(self.pins['MS1'], ms1)
+            GPIO.output(self.pins['MS2'], ms2)
+            GPIO.output(self.pins['MS3'], ms3)
+            print(f"Microstepping set to {self.microstep_settings}")
+            
     def enable(self):
-        """Enable the motor driver."""
-        print(f"Enabling motor with ENABLE pin {self.pins['ENABLE']}")
-        # GPIO.output(self.pins['ENABLE'], GPIO.LOW)
+        """Enable the motor driver (ENABLE pin is active low)."""
+        GPIO.output(self.pins['ENABLE'], GPIO.LOW)  # LOW to enable
+        print(f"Motor enabled with ENABLE pin {self.pins['ENABLE']}")
 
     def disable(self):
-        """Disable the motor driver."""
-        print(f"Disabling motor with ENABLE pin {self.pins['ENABLE']}")
-        # GPIO.output(self.pins['ENABLE'], GPIO.HIGH)
+        """Disable the motor driver (ENABLE pin is active low)."""
+        GPIO.output(self.pins['ENABLE'], GPIO.HIGH)  # HIGH to disable
+        print(f"Motor disabled with ENABLE pin {self.pins['ENABLE']}")
 
     def set_direction(self, direction):
-        """Set direction to Clockwise or Counter-Clockwise."""
+        """Set direction to Clockwise (HIGH) or Counter-Clockwise (LOW)."""
         if direction == "CW":
+            GPIO.output(self.pins['DIR'], GPIO.HIGH)
             print(f"Setting DIR pin {self.pins['DIR']} to HIGH for CW")
-            # GPIO.output(self.pins['DIR'], GPIO.HIGH)
         else:
+            GPIO.output(self.pins['DIR'], GPIO.LOW)
             print(f"Setting DIR pin {self.pins['DIR']} to LOW for CCW")
-            # GPIO.output(self.pins['DIR'], GPIO.LOW)
 
     def step(self):
-        """Perform a single step."""
+        """Perform a single step (toggle the STEP pin)."""
+        GPIO.output(self.pins['STEP'], GPIO.HIGH)
+        time.sleep(0.001)  # Step pulse width (can be adjusted)
+        GPIO.output(self.pins['STEP'], GPIO.LOW)
         print(f"Stepping with STEP pin {self.pins['STEP']}")
-        # GPIO.output(self.pins['STEP'], GPIO.HIGH)
-        # time.sleep(0.001)  # Step pulse width
-        # GPIO.output(self.pins['STEP'], GPIO.LOW)
+
+    def cleanup(self):
+        """Clean up the GPIO resources when done."""
+        GPIO.cleanup()
+        print("GPIO cleaned up")
 
 stepper = A4988Stepper(pin_mappings=pin_map, microstep_settings=(0,0,0))
 
