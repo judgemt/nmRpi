@@ -39,7 +39,7 @@ GPIO.setmode(GPIO.BCM)
 #     # Microstepping pins:
 #     # Stepsize  Full    Half    Quarter Eigth   Sixteenth
 #     # MS1       low     high    low     high    high
-#     # MS2       low     low     high    high    high
+#     # pin_states MS2       low     low     high    high    high
 #     # MS3       low     low     low     low     high 
 #     'MS1': 4, # pull up to activate 
 #     'MS2': 5, # pull up to activate
@@ -64,6 +64,53 @@ GPIO.setmode(GPIO.BCM)
 #     'GND_PI': None,
 # }
 
+buttonPin = 27
+GPIO.setup(buttonPin, GPIO.input, pull_up_down=GPIO.PUD_UP)
+
+class PinReader:
+    def __init__(self, pin_mappings):
+        """Initialize GPIO pins for reading."""
+        self.pins = pin_mappings
+        self.pin_states = {}  # Dictionary to store the state of each pin
+
+        # Set up each pin as an input with pull-down resistors
+        # GPIO.setmode(GPIO.BCM)  # Use BCM numbering
+        for pin in self.pins.values():
+            GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+    def update(self):
+        """Read and store the current state of all pins."""
+        for pin_name, pin_number in self.pins.items():
+            self.pin_states[pin_name] = GPIO.input(pin_number)
+
+    def print_states(self):
+        """Print the stored state of all pins."""
+        print("Pin States:")
+        for pin_name, pin_state in self.pin_states.items():
+            state_str = "HIGH" if pin_state else "LOW"
+            print(f"{pin_name}: GPIO {self.pins[pin_name]} is {state_str}")
+
+    def cleanup(self):
+        """Clean up GPIO resources."""
+        GPIO.cleanup()
+        print("GPIO cleaned up")
+
+# Example usage:
+input_pin = {
+    'STEP': 23,
+    'ENABLED': 19,
+    'MS1': 13,
+    'MS2': 16,
+    'MS3': 17,
+    'DIR': 24
+}
+
+# Create an instance of the PinReader class
+input_pins = PinReader(input_pin)
+
+
+# Set up driver object:
+
 pin_map = {
     'MS1': 4, # pull up to activate 
     'MS2': 5, # pull up to activate
@@ -75,7 +122,7 @@ pin_map = {
     'STEP': 21, # each HIGH pulse triggers next step according to ms settings
                 # faster pulses = faster movement
     'DIR': 20,  # pull up for clockwise, pull down for counterclockwise
-    'ENABLE': 19
+    'ENABLE': 22
 }
 
 class A4988Stepper:
@@ -83,7 +130,7 @@ class A4988Stepper:
         self.pins = pin_mappings
         
         # Set up GPIO
-        GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
+        # GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
         for pin in self.pins.values():
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, GPIO.LOW)  # Set all pins to LOW initially
@@ -155,16 +202,25 @@ class A4988Stepper:
 stepper = A4988Stepper(pin_mappings=pin_map, microstep_settings=(0,0,0))
 
 stepper.set_direction("CW")
-
 stepper.set_microstepping(0,1,0)
 
-stepper.set_pins("DIR", 20)
+button = 0 # not pressed
+steps = 0 
 
-# microstepping
+try: 
+    while 1:
+        time.sleep(.1)
+        
+        if not GPIO.input(buttonPin): # button is not up; is pressed
+            stepper.step()
+            steps = steps + 1 # pressed
+            input_pins.update()
+            input_pins.print_states()
+        
+except KeyboardInterrupt:
+    stepper.cleanup()
 
-
-
-
+stepper.step()
 
 
 # Sleep if no input
