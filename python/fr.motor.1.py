@@ -65,7 +65,7 @@ GPIO.setmode(GPIO.BCM)
 # }
 
 buttonPin = 27
-GPIO.setup(buttonPin, GPIO.input, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(buttonPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 class PinReader:
     def __init__(self, pin_mappings):
@@ -115,10 +115,10 @@ pin_map = {
     'MS1': 4, # pull up to activate 
     'MS2': 5, # pull up to activate
     'MS3': 6, # pull up to activate:
-    'RESET': None,  # pull low to reset STEP inputs and return to initial driver position
-                    # connect to SLP to pull up and enable driver if not using. 
-                    # if used, employ 1 ms delay before STEP command (for charge pump stabilization)
-    'SLP': None,    # pull low to sleep
+    # 'RESET': None,  # pull low to reset STEP inputs and return to initial driver position
+    #                 # connect to SLP to pull up and enable driver if not using. 
+    #                 # if used, employ 1 ms delay before STEP command (for charge pump stabilization)
+    # 'SLP': None,    # pull low to sleep
     'STEP': 21, # each HIGH pulse triggers next step according to ms settings
                 # faster pulses = faster movement
     'DIR': 20,  # pull up for clockwise, pull down for counterclockwise
@@ -132,6 +132,7 @@ class A4988Stepper:
         # Set up GPIO
         # GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
         for pin in self.pins.values():
+            print(f"Setting up pin {pin}")
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, GPIO.LOW)  # Set all pins to LOW initially
 
@@ -214,6 +215,7 @@ try:
         if not GPIO.input(buttonPin): # button is not up; is pressed
             stepper.step()
             steps = steps + 1 # pressed
+            print(steps)
             input_pins.update()
             input_pins.print_states()
         
