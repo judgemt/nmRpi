@@ -5,19 +5,20 @@ import time
 GPIO.setmode(GPIO.BCM)
 
 # Define Pins
-ledPin = 13
-buttonPin = 17
+ledPin = 27
 
 # Setup Pins
 GPIO.setup(ledPin, GPIO.OUT)
-GPIO.setup(buttonPin, GPIO.IN)
 # GPIO.setwarnings(False)
 
-# Modify Pins
-print("LED on")
-GPIO.output(ledPin, GPIO.HIGH)
-time.sleep(1)
-print("LED off")
-GPIO.output(ledPin, GPIO.LOW)
-
-GPIO.cleanup
+try:
+    while 1:
+        # Modify Pins
+        print("LED on")
+        GPIO.output(ledPin, GPIO.HIGH)
+        time.sleep(1)
+        print("LED off")
+        GPIO.output(ledPin, GPIO.LOW)
+        time.sleep(.5)
+except KeyboardInterrupt:
+    GPIO.cleanup()
