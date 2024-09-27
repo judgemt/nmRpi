@@ -5,101 +5,14 @@ import time
 GPIO.setmode(GPIO.BCM)
 
 ## Set up simulated a4988 driver:
-
 pin_map = {
-    'MS1': 4, # pull up to activate 
-    'MS2': 5, # pull up to activate
-    'MS3': 6, # pull up to activate:
-    # 'RESET': None,  # pull low to reset STEP inputs and return to initial driver position
-    #                 # connect to SLP to pull up and enable driver if not using. 
-    #                 # if used, employ 1 ms delay before STEP command (for charge pump stabilization)
-    # 'SLP': None,    # pull low to sleep
-    'STEP': 21, # each HIGH pulse triggers next step according to ms settings
-                # faster pulses = faster movement
-    'DIR': 20,  # pull up for clockwise, pull down for counterclockwise
+    'MS1': 4,  # pull up to activate 
+    'MS2': 5,  # pull up to activate
+    'MS3': 6,  # pull up to activate
+    'STEP': 21,  # each HIGH pulse triggers next step according to ms settings
+    'DIR': 20,   # pull up for clockwise, pull down for counterclockwise
     'ENABLE': 22
 }
-
-class A4988Stepper:
-    def __init__(self, pin_mappings, microstep_settings=(0, 0, 0)):
-        self.pins = pin_mappings
-        
-        # Set up GPIO
-        # GPIO.setmode(GPIO.BCM)  # Use BCM pin numbering
-        for pin in self.pins.values():
-            print(f"Setting up pin {pin}")
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, GPIO.LOW)  # Set all pins to LOW initially
-
-        # Set the initial microstepping mode
-        self.set_microstepping(*microstep_settings)
-
-    def set_pins(self, pin_name, gpio_pin):
-        """Update the GPIO pin for a specific A4988 pin and reconfigure it."""
-        if pin_name in self.pins:
-            GPIO.setup(gpio_pin, GPIO.OUT)
-            GPIO.output(gpio_pin, GPIO.LOW)  # Set to LOW initially
-            self.pins[pin_name] = gpio_pin
-            print(f"Updated {pin_name} pin to GPIO {gpio_pin}")
-        else:
-            print(f"Error: {pin_name} is not a valid A4988 pin name.")
-
-    def set_microstepping(self, ms1=None, ms2=None, ms3=None):
-        """Set microstepping mode by adjusting MS1, MS2, MS3 pins."""
-        if ms1 is None and ms2 is None and ms3 is None:
-            # Print the help map
-            print("Microstepping Map:")
-            print("Stepsize   | MS1   | MS2   | MS3")
-            print("-----------|-------|-------|-------")
-            print("Full       | Low   | Low   | Low")
-            print("Half       | High  | Low   | Low")
-            print("Quarter    | Low   | High  | Low")
-            print("Eighth     | High  | High  | Low")
-            print("Sixteenth  | High  | High  | High")
-        else:
-            # Set the microstepping pins if arguments are provided
-            self.microstep_settings = (ms1, ms2, ms3)
-            GPIO.output(self.pins['MS1'], ms1)
-            GPIO.output(self.pins['MS2'], ms2)
-            GPIO.output(self.pins['MS3'], ms3)
-            print(f"Microstepping set to {self.microstep_settings}")
-            
-    def enable(self):
-        """Enable the motor driver (ENABLE pin is active low)."""
-        GPIO.output(self.pins['ENABLE'], GPIO.LOW)  # LOW to enable
-        print(f"Motor enabled with ENABLE pin {self.pins['ENABLE']}")
-
-    def disable(self):
-        """Disable the motor driver (ENABLE pin is active low)."""
-        GPIO.output(self.pins['ENABLE'], GPIO.HIGH)  # HIGH to disable
-        print(f"Motor disabled with ENABLE pin {self.pins['ENABLE']}")
-
-    def set_direction(self, direction):
-        """Set direction to Clockwise (HIGH) or Counter-Clockwise (LOW)."""
-        if direction == "CW":
-            GPIO.output(self.pins['DIR'], GPIO.HIGH)
-            print(f"Setting DIR pin {self.pins['DIR']} to HIGH for CW")
-        else:
-            GPIO.output(self.pins['DIR'], GPIO.LOW)
-            print(f"Setting DIR pin {self.pins['DIR']} to LOW for CCW")
-
-    def step(self):
-        """Perform a single step (toggle the STEP pin)."""
-        GPIO.output(self.pins['STEP'], GPIO.HIGH)
-        time.sleep(0.001)  # Step pulse width (can be adjusted)
-        GPIO.output(self.pins['STEP'], GPIO.LOW)
-        print(f"Stepping with STEP pin {self.pins['STEP']}")
-
-    def cleanup(self):
-        """Clean up the GPIO resources when done."""
-        GPIO.cleanup()
-        print("GPIO cleaned up")
-
-stepper = A4988Stepper(pin_mappings=pin_map, microstep_settings=(0,0,0))
-
-## Monitor the simulated a4899
-buttonPin = 27
-GPIO.setup(buttonPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 class PinReader:
     def __init__(self, pin_mappings):
@@ -108,7 +21,6 @@ class PinReader:
         self.pin_states = {}  # Dictionary to store the state of each pin
 
         # Set up each pin as an input with pull-down resistors
-        # GPIO.setmode(GPIO.BCM)  # Use BCM numbering
         for pin in self.pins.values():
             GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
@@ -129,6 +41,79 @@ class PinReader:
         GPIO.cleanup()
         print("GPIO cleaned up")
 
+
+class A4988Stepper:
+    def __init__(self, pin_mappings, microstep_settings=(0, 0, 0), pin_reader=None):
+        self.pins = pin_mappings
+        self.pin_reader = pin_reader  # Instance of PinReader to read inputs
+        
+        # Set up GPIO
+        for pin in self.pins.values():
+            print(f"Setting up pin {pin}")
+            GPIO.setup(pin, GPIO.OUT)
+            GPIO.output(pin, GPIO.LOW)  # Set all pins to LOW initially
+
+        # Set the initial microstepping mode
+        self.set_microstepping(*microstep_settings)
+
+    def set_microstepping(self, ms1=None, ms2=None, ms3=None):
+        """Set microstepping mode by adjusting MS1, MS2, MS3 pins."""
+        if ms1 is None and ms2 is None and ms3 is None:
+            # Print the help map
+            print("Microstepping Map:")
+            print("Stepsize   | MS1   | MS2   | MS3")
+            print("-----------|-------|-------|-------")
+            print("Full       | Low   | Low   | Low")
+            print("Half       | High  | Low   | Low")
+            print("Quarter    | Low   | High  | Low")
+            print("Eighth     | High  | High  | Low")
+            print("Sixteenth  | High  | High  | High")
+        else:
+            # Set the microstepping pins if arguments are provided
+            self.microstep_settings = (ms1, ms2, ms3)
+            GPIO.output(self.pins['MS1'], ms1)
+            GPIO.output(self.pins['MS2'], ms2)
+            GPIO.output(self.pins['MS3'], ms3)
+            print(f"Microstepping set to {self.microstep_settings}")
+            self.pin_reader.update()  # Update PinReader after setting microstepping if available
+
+    def enable(self):
+        """Enable the motor driver (ENABLE pin is active low)."""
+        GPIO.output(self.pins['ENABLE'], GPIO.LOW)  # LOW to enable
+        print(f"Motor enabled with ENABLE pin {self.pins['ENABLE']}")
+        self.pin_reader.update()  # Update PinReader after enabling if available
+
+    def disable(self):
+        """Disable the motor driver (ENABLE pin is active low)."""
+        GPIO.output(self.pins['ENABLE'], GPIO.HIGH)  # HIGH to disable
+        print(f"Motor disabled with ENABLE pin {self.pins['ENABLE']}")
+        self.pin_reader.update()  # Update PinReader after disabling if available
+
+    def set_direction(self, direction):
+        """Set direction to Clockwise (HIGH) or Counter-Clockwise (LOW)."""
+        if direction == "CW":
+            GPIO.output(self.pins['DIR'], GPIO.HIGH)
+            print(f"Setting DIR pin {self.pins['DIR']} to HIGH for CW")
+        else:
+            GPIO.output(self.pins['DIR'], GPIO.LOW)
+            print(f"Setting DIR pin {self.pins['DIR']} to LOW for CCW")
+        self.pin_reader.update()  # Update PinReader after setting direction if available
+
+    def step(self):
+        """Perform a single step (toggle the STEP pin)."""
+        GPIO.output(self.pins['STEP'], GPIO.HIGH)
+        time.sleep(0.001)  # Step pulse width (can be adjusted)
+        GPIO.output(self.pins['STEP'], GPIO.LOW)
+        print(f"Stepping with STEP pin {self.pins['STEP']}")
+        self.pin_reader.update()  # Update PinReader after stepping if available
+
+    def cleanup(self):
+        """Clean up the GPIO resources when done."""
+        GPIO.cleanup()
+        print("GPIO cleaned up")
+
+
+# Set up the driver state reader
 input_pin = {
     'STEP': 23,
     'ENABLED': 19,
@@ -140,44 +125,33 @@ input_pin = {
 
 driver_state = PinReader(input_pin)
 
-## Make static modifications and read out
+# Create an instance of the A4988Stepper with the PinReader
+stepper = A4988Stepper(pin_mappings=pin_map, microstep_settings=(0,0,0), pin_reader=driver_state)
 
+## Make static modifications and read out
 driver_state.print_states()
 print('Modifying direction and stepping:')
 stepper.set_direction("CW")
 stepper.set_microstepping(0,1,0)
 driver_state.print_states()
 
-button = 0 # not pressed
-steps = 0 
-driver_state.update()
-driver_state.print_states()
+buttonPin = 27
+GPIO.setup(buttonPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+button = 0  # not pressed
+steps = 0 
 
 try: 
     while 1:
-        if GPIO.input(buttonPin): # button is up; is not pressed
-            # print('button is not pressed')
+        if GPIO.input(buttonPin):  # button is up; is not pressed
             time.sleep(0.1)
         else: 
             print('button is pressed')
-            stepper.step()
-            driver_state.pin_states['STEP']
-            steps = steps + 1 # pressed
-            print(steps)
-            driver_state.update()
-            driver_state.print_states()
+            stepper.step()  # Step and update pin states
+            steps += 1  # pressed
+            print(f"Total steps: {steps}")
+            driver_state.print_states()  # Print updated pin states
             time.sleep(0.25)
+
 except KeyboardInterrupt:
-    # stepper.cleanup()
-    # driver_state.cleanup()
     GPIO.cleanup()
-
-    
-
-# Sleep if no input
-
-# Fwd motor motion if b1
-
-# Rev motor motion if b2
-
