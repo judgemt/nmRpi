@@ -28,12 +28,7 @@ class A4988Stepper:
             # Set the microstepping pins if arguments are provided
             self.microstepping_settings = (ms1, ms2, ms3)
             GPIO.output(self.pins['MS1'], ms1)
-            GPIO.output(self.pins['MS2'], ms2)
-            GPIO.output(self.pins['MS3'], ms3)
-            print(f"Microstepping set to {self.microstepping_settings}")
-            if self.pin_reader:
-                self.pin_reader.update()
-
+          for linux
     def enable(self):
         """Enable the motor driver (ENABLE pin is active low)."""
         GPIO.output(self.pins['ENABLE'], GPIO.LOW)  # LOW to enable
@@ -68,7 +63,7 @@ class A4988Stepper:
             self.pin_reader.update()  # Capture the HIGH state before toggling to LOW
             self.pin_reader.print_states(self.pins)  # Optionally print pin states right after the update
 
-        time.sleep(0.001)  # Step pulse width
+        time.sleep(0.01)  # Step pulse width
         GPIO.output(self.pins['STEP'], GPIO.LOW)
         print("STEP pin set to LOW")  # Output pin state for readability
 
