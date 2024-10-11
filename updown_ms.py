@@ -1,7 +1,8 @@
 import RPi.GPIO as GPIO
 import time
 from microstep import Microstep
-import utils
+from utils import calibrate_step_delay
+from utils import step
 
 # Main script
 
@@ -40,8 +41,9 @@ for name, info in pin.items():
 ms = Microstep(pin)
 ms.set_mode(stepMode)
 spr = ms.get_factor() * 200
+n = spr*revolutions
 
-stepDelay = utils.calibrate_step_delay(spr, speed, pulseWidth, 5E4)
+stepDelay = calibrate_step_delay(spr, speed, pulseWidth, 5E4)
 
 # Main logic loop
 
@@ -53,7 +55,7 @@ try:
     print(f'Running in {revolutions} turns:')
     GPIO.output(pin['DIR']['number'], GPIO.HIGH)
 
-    time_elapsed, s = utils.step(spr*revolutions, pin, pulseWidth, stepDelay)
+    time_elapsed = step(n, pin, pulseWidth, stepDelay)
     print(f"Speed measured @ {round(revolutions/time_elapsed, 3)} rps")
 
     print('Pausing 1 sec...')
@@ -63,15 +65,8 @@ try:
     print(f'Running out {revolutions} turns:')
     GPIO.output(pin['DIR']['number'], GPIO.LOW)
 
-    for i in range(spr*revolutions):# 1 revolution
-        s += 1
-        # print('Button pressed, stepping motor')
-        GPIO.output(pin['STEP']['number'], GPIO.HIGH)
-        # print(f"Total steps: {step}")
-        time.sleep(pulseWidth)  # minimum pulse width
-        GPIO.output(pin['STEP']['number'], GPIO.LOW)
-        
-        time.sleep(stepDelay)  # Short sleep to reduce CPU usage
+    time_elapsed = step(n, pin, pulseWidth, stepDelay)
+    print(f"Speed measured @ {round(revolutions/time_elapsed, 3)} rps")
     
     GPIO.output(pin['ENABLE']['number'], GPIO.HIGH)
     print('Driver disabled')

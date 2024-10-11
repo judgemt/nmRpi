@@ -47,18 +47,15 @@ def calibrate_step_delay(spr, speed, pulseWidth, n):
 def step(n, pin, pulseWidth, stepDelay):
 
     start_time = time.time()
-    s = 0
+
     for i in range(n):# 1 revolution
-        s += 1
-        # print('Button pressed, stepping motor')
         GPIO.output(pin['STEP']['number'], GPIO.HIGH)
-        # print(f"Total steps: {step}")
         time.sleep(pulseWidth)  # minimum pulse width # each of these calls costs 0.000125 s on average on an RPI4, mainly due to time.sleep overhead. Subtract this from the pulseWidth before using?
         GPIO.output(pin['STEP']['number'], GPIO.LOW)
-        
         time.sleep(stepDelay)  # Short sleep to reduce CPU usage
     
     end_time = time.time()
+    
     time_elapsed = end_time-start_time
     
-    return time_elapsed, s
+    return time_elapsed
