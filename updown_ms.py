@@ -1,8 +1,6 @@
 import RPi.GPIO as GPIO
 import time
-from microstep import Microstep
-from utils import calibrate_step_delay
-from utils import step
+from python.drivers.utils import calibrate_step_delay, Microstep, step
 
 # Main script
 

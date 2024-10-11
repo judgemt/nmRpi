@@ -1,7 +1,7 @@
 import RPi.GPIO as GPIO
 import time
 
-from a4988_sim.a4988_stepper import A4988Stepper
+from python.drivers.stepper import A4988
 
 # Main script
 
