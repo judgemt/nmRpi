@@ -1,1 +1,1 @@
-# Learning Raspberry Pi GPIO
+Developing an app to control a syringe pump. 
