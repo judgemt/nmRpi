@@ -1,18 +1,19 @@
 import RPi.GPIO as GPIO
 import time
-from drivers.utils import calibrate_step_delay, step
-from drivers.utils import Microstep
+from drivers.utils import calibrate_sleep_overhead, step, Microstep
 
 class A4988:
     def __init__(self, pin_mappings, auto_calibrate=False, speed=None, pulseWidth=None, motor_spr=200):
         """Initialize stepper with GPIO pin mappings and microstep pins."""
         GPIO.setmode(GPIO.BCM)
         self.pins = pin_mappings
-        self.stepDelay = None  # Field to store the calibrated step delay
+        self.stepDelay = None  # This will be dynamically calculated
+        self.sleep_overhead = None  # To store the calibrated sleep overhead
         self.pins_setup = False  # Flag to check if pins are set up correctly
         self.microstep = None  # this will handle microstepping
         self.motor_spr = motor_spr  # steps per revolution; default for nema17 pololu is 200
-        
+        self.pulseWidth = pulseWidth or 5E-6  # Default pulse width
+
         # Set up GPIO and verify pin setup
         self.setup_pins()
 
@@ -20,7 +21,7 @@ class A4988:
         if auto_calibrate:
             if speed is None or pulseWidth is None:
                 raise ValueError("Speed and pulseWidth must be provided for auto calibration.")
-            self.calibrate(speed, pulseWidth)
+            self.calibrate()
 
     def setup_pins(self):
         """Set up the GPIO pins."""
@@ -66,15 +67,14 @@ class A4988:
             GPIO.output(self.pins['DIR']['number'], GPIO.LOW)
             print(f"Direction set to Counter-Clockwise")
 
-    def calibrate(self, speed, pulseWidth):
-        """Calibrate the step delay based on speed and pulseWidth and store it."""
+    def calibrate(self):
+        """Calibrate the sleep overhead and store it."""
         if not self.pins_setup:
             raise RuntimeError("Pins have not been set up correctly.")
-        if self.microstep is None:
-            raise RuntimeError("Microstep object not initialized.")
-        spr = self.microstep.get_factor() * self.motor_spr  # Use self.motor_spr instead of hardcoding 200
-        self.stepDelay = calibrate_step_delay(spr, speed, pulseWidth, 1E4)
-        print(f"Calibration complete: stepDelay = {self.stepDelay}")
+        
+        # Measure and store the sleep overhead using the new calibration function
+        self.sleep_overhead = calibrate_sleep_overhead()  # Only measure sleep overhead
+        print(f"Calibration complete: sleep_overhead = {self.sleep_overhead}")
 
     def set_step_type(self, stepMode):
         """Set the step mode (full, half, quarter, sixteenth) without moving the motor."""
@@ -82,22 +82,27 @@ class A4988:
         self.microstep.set_mode(stepMode)
         print(f"Step mode {stepMode} set successfully.")
 
-    def move(self, revolutions, stepMode, direction="CW", pulseWidth=5E-6):
+    def move(self, revolutions, stepMode, speed, direction="CW"):
         """Move the stepper motor by a given number of revolutions in the specified direction."""
         if not self.pins_setup:
             raise RuntimeError("Pins have not been set up correctly.")
         
-        # Automatically calibrate if not done yet
-        if self.stepDelay is None:
-            print("Calibration not done. Running automatic calibration...")
-            raise RuntimeError("Step delay not calibrated. Please run calibrate() first.")
+        if self.sleep_overhead is None:
+            raise RuntimeError("Sleep overhead not calibrated. Please run calibrate() first.")
 
-        # Set step mode using the set_step_type function
-        self.set_step_type(stepMode)
-
-        spr = self.microstep.get_factor() * self.motor_spr
+        # Set microstepping mode
+        self.microstep.set_mode(stepMode)
+        spr = self.microstep.get_factor() * self.motor_spr  # Steps per revolution
         steps = spr * revolutions
 
+        # Calculate steps per second (SPS)
+        sps = spr * speed
+
+        # Calculate stepDelay based on speed, sleep overhead, and pulse width
+        step_desired = 1 / sps
+        self.stepDelay = step_desired - self.sleep_overhead - self.pulseWidth
+        self.stepDelay = max(self.stepDelay, self.pulseWidth)  # Ensure minimum step delay
+        
         # Enable the motor
         self.enable()
 
@@ -105,8 +110,8 @@ class A4988:
         self.set_direction(direction)
 
         # Perform the steps
-        print(f"Moving {revolutions} revolutions in {stepMode} mode in {direction} direction.")
-        time_elapsed = step(steps, self.pins, pulseWidth, self.stepDelay)
+        print(f"Moving {revolutions} revolutions in {stepMode} mode at {speed} revs/sec.")
+        time_elapsed = step(steps, self.pins, self.pulseWidth, self.stepDelay)
         print(f"Speed measured @ {round(revolutions / time_elapsed, 3)} rps")
 
         # Disable the motor after movement is complete

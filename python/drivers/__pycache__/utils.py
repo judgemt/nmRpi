@@ -1,22 +1,42 @@
 import time
 import RPi.GPIO as GPIO
 
-def calibrate_sleep_overhead(n=1E4):
-    """Calibrate the sleep overhead by performing a large number of short sleep calls."""
+def calibrate_step_delay(spr, speed, pulseWidth, n=1E4):
+    """Calibrate the step delay, accounting for sleep overhead and pulse width."""
     
+    # Calculate steps per second (SPS)
+    sps = spr * speed
+    start_time = time.time()
+
     # Measure sleep overhead
     print('Measuring sleep overhead...')
     t1 = time.time()
     for i in range(int(n)):
         time.sleep(0)  # Perform a large number of short sleep calls to measure overhead
-        time.sleep(0)
+        time.sleep(0)  # Perform a large number of short sleep calls to measure overhead
     t2 = time.time()
     
     sleep_overhead = (t2 - t1) / n  # Average sleep overhead per step
     print(f'{n} sleeps took {t2 - t1:.6f} seconds.')
     print(f'sleep_overhead =~ {sleep_overhead:.6f} seconds per step.')
+    
+    # Desired step time based on speed (revs per second)
+    step_desired = 1 / sps
+    print(f'Desired step time = {step_desired:.6f} s.')
 
-    return sleep_overhead
+    # Calculate the stepDelay based on desired step time, sleep overhead, and pulse width
+    stepDelay = step_desired - sleep_overhead - pulseWidth
+    stepDelay = round(stepDelay, 6)
+
+    # Ensure step delay + pulse width is not below the threshold (5 µs)
+    if (stepDelay + pulseWidth) < pulseWidth:
+        print(f'Step duration (stepDelay + pulseWidth) must be >= pulseWidth. Current step duration is {stepDelay + pulseWidth:.6f}.')
+        stepDelay = pulseWidth
+        print(f"Step delay adjusted to {stepDelay:.6f} s to meet the minimum requirement.")
+    else:
+        print(f'Step delay adjusted to {stepDelay:.6f} seconds to account for sleep overhead.')
+
+    return stepDelay
 
 # Example usage:
 # ms = Microstep(pin_mapping)
