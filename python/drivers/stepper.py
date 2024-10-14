@@ -82,8 +82,8 @@ class A4988:
         self.microstep.set_mode(stepMode)
         print(f"Step mode {stepMode} set successfully.")
 
-    def move(self, revolutions, stepMode, speed, direction="CW"):
-        """Move the stepper motor by a given number of revolutions in the specified direction."""
+    def move(self, revolutions=None, steps=None, stepMode="full", speed=1, direction="CW", pulseWidth=5E-6):
+        """Move the stepper motor by a given number of revolutions or steps in the specified direction."""
         if not self.pins_setup:
             raise RuntimeError("Pins have not been set up correctly.")
         
@@ -93,15 +93,25 @@ class A4988:
         # Set microstepping mode
         self.microstep.set_mode(stepMode)
         spr = self.microstep.get_factor() * self.motor_spr  # Steps per revolution
-        steps = spr * revolutions
+
+        # Determine if we're moving by revolutions or steps
+        if steps is not None:
+            total_steps = steps
+            revolutions = total_steps / spr  # Convert steps to revolutions for rps reporting
+            print(f"Moving {steps} steps in {stepMode} mode, which is {revolutions:.3f} revolutions.")
+        elif revolutions is not None:
+            total_steps = spr * revolutions
+            print(f"Moving {revolutions} revolutions in {stepMode} mode, which is {total_steps} steps.")
+        else:
+            raise ValueError("Either revolutions or steps must be provided.")
 
         # Calculate steps per second (SPS)
         sps = spr * speed
 
         # Calculate stepDelay based on speed, sleep overhead, and pulse width
         step_desired = 1 / sps
-        self.stepDelay = step_desired - self.sleep_overhead - self.pulseWidth
-        self.stepDelay = max(self.stepDelay, self.pulseWidth)  # Ensure minimum step delay
+        self.stepDelay = step_desired - self.sleep_overhead - pulseWidth
+        self.stepDelay = max(self.stepDelay, pulseWidth)  # Ensure minimum step delay
         
         # Enable the motor
         self.enable()
@@ -110,9 +120,11 @@ class A4988:
         self.set_direction(direction)
 
         # Perform the steps
-        print(f"Moving {revolutions} revolutions in {stepMode} mode at {speed} revs/sec.")
-        time_elapsed = step(steps, self.pins, self.pulseWidth, self.stepDelay)
-        print(f"Speed measured @ {round(revolutions / time_elapsed, 3)} rps")
+        time_elapsed = step(total_steps, self.pins, pulseWidth, self.stepDelay)
+        
+        # Calculate revolutions per second (rps)
+        measured_rps = revolutions / time_elapsed
+        print(f"Movement complete. Speed measured @ {round(measured_rps, 3)} rps.")
 
         # Disable the motor after movement is complete
         self.disable()
