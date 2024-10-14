@@ -15,6 +15,7 @@ class A4988:
         self.pulseWidth = pulseWidth or 5E-6  # Default pulse width
 
         # Set up GPIO and verify pin setup
+        GPIO.setwarnings(False)
         self.setup_pins()
 
         # Optional auto-calibration during initialization
