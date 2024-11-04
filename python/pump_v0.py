@@ -1,65 +1,88 @@
 class Pump:
-    def __init__(self, stepper: A4988, syringe_volume, syringe_limits, void_volume=0):
-        self.stepper = stepper  # A4988 object controlling the motor
-        self.syringe_volume = syringe_volume  # Total volume of syringe in mL
-        self.syringe_limits = syringe_limits  # Min and max positions (in steps)
-        self.void_volume = void_volume  # Volume in lines to clear
-        self.current_volume = 0  # Track current liquid in the syringe
-        self.movement_history = []  # To log movements
-        self.retracted = True  # Track if the syringe is retracted or pushed
-        self.sample_from = None  # Source location
-        self.sample_to = None  # Target location
-        self.lead_screw_pitch = None  # Pitch of the screw (distance moved per revolution in mm)
-
-    def prompt_for_screw_data(self):
-        """Prompt the user for lead screw data or help them measure it."""
-        # Step 1: Ask if the user knows the screw pitch
-        knows_pitch = input("Do you know the lead screw pitch (distance moved per revolution) in mm? (y/n): ").lower()
-
-        if knows_pitch == 'y':
-            self.lead_screw_pitch = float(input("Enter the lead screw pitch (in mm): "))
-        else:
-            # Step 2: Guide the user through a manual measurement
-            print("Let's measure the lead screw pitch manually.")
-            input("Ensure the syringe is fully retracted and press Enter to continue...")
-            
-            # Move the screw by a known number of revolutions (e.g., 5 full revolutions)
-            revolutions = 5
-            print(f"Moving the screw by {revolutions} full revolutions.")
-            self.stepper.move(revolutions=revolutions, stepMode="full", speed=1, direction="CW")
-            
-            # Prompt the user to measure the distance moved
-            distance_moved = float(input("Measure the distance the syringe moved (in mm) and enter the value: "))
-            
-            # Calculate the screw pitch based on revolutions and distance
-            self.lead_screw_pitch = distance_moved / revolutions
-            print(f"Estimated lead screw pitch: {self.lead_screw_pitch:.3f} mm per revolution.")
+    def __init__(self, motor, syringe_volume=5.0, syringe_limits=(0, 10000), ml_per_rotation=None, motor_spr=200):
+        """
+        Initializes the Pump class.
         
-        return self.lead_screw_pitch
+        Args:
+            motor (A4988Stepper): The motor instance controlling the pump.
+            syringe_volume (float): Total volume of the syringe in mL.
+            syringe_limits (tuple): Tuple defining the min and max steps for the syringe.
+            ml_per_rotation (float): Optional. Volume in mL per motor rotation.
+            motor_spr (int): Steps per revolution for the motor.
+        """
+        self.motor = motor
+        self.syringe_volume = syringe_volume
+        self.syringe_limits = syringe_limits
+        self.ml_per_rotation = ml_per_rotation  # Direct mL per rotation if provided
+        self.motor_spr = motor_spr  # Steps per revolution for the motor
+        self.volume_calibration = None if ml_per_rotation is None else {'ml_per_rotation': ml_per_rotation}
+        self.movement_history = []
+        self.retracted = False
+        self.sample_from = None
+        self.sample_to = None
 
-    def calculate_revolutions_for_syringe(self):
-        """Estimate the number of revolutions for the syringe's full range based on pitch."""
-        if self.lead_screw_pitch is None:
-            print("Lead screw pitch is not set. Please run the prompt_for_screw_data() first.")
+    def move_volume(self, volume, direction="in", speed=1):
+        """
+        Move a specified volume in or out, depending on the direction.
+
+        Args:
+            volume (float): Volume in mL to move.
+            direction (str): "in" or "out" to control the syringe's movement.
+            speed (float): Speed in revolutions per second.
+        """
+        steps = self._volume_to_steps(volume)
+        
+        if steps > self.syringe_limits[1]:
+            raise ValueError("Requested volume exceeds syringe limits.")
+        
+        # Set direction based on "in" or "out" command
+        motor_direction = "CW" if direction == "in" else "CCW"
+        self.motor.move(steps, stepMode="full", direction=motor_direction, speed=speed)
+        
+        # Record the movement
+        self.record_movement(volume, direction)
+
+    def _volume_to_steps(self, volume):
+        """
+        Convert a volume (mL) to steps based on ml_per_rotation or calibration.
+        
+        Args:
+            volume (float): Volume in mL to convert to steps.
+        
+        Returns:
+            int: Number of steps corresponding to the volume.
+        """
+        if self.volume_calibration:
+            # If ml_per_rotation is provided, calculate steps using it
+            if 'ml_per_rotation' in self.volume_calibration:
+                ml_per_rotation = self.volume_calibration['ml_per_rotation']
+                steps_per_ml = self.motor_spr / ml_per_rotation
+            else:
+                # Use steps_per_ml from calibration
+                steps_per_ml = self.volume_calibration.get('steps_per_ml')
+        else:
+            raise RuntimeError("No calibration or ml_per_rotation provided. Please calibrate or set ml_per_rotation.")
+        
+        return int(volume * steps_per_ml)
+
+    def calibrate_volume(self, points):
+        """
+        Guide the user through a volume calibration process if ml_per_rotation isn't provided.
+        
+        Args:
+            points (list of tuple): List of (steps, volume) pairs for calibration.
+        """
+        if self.ml_per_rotation:
+            print("Calibration skipped as ml_per_rotation is provided.")
             return
 
-        # Step 3: Ask the user for the syringe length (distance between min and max marks in mm)
-        syringe_length = float(input("Enter the length of the syringe's travel (distance between the bottom and top marks in mm): "))
+        print("Calibrating volume...")
+
+        # Collect data from points and calculate steps-per-ml (linear approximation here)
+        total_steps = sum(p[0] for p in points)
+        total_volume = sum(p[1] for p in points)
+        steps_per_ml = total_steps / total_volume
         
-        # Calculate the number of revolutions for the full syringe range
-        total_revolutions = syringe_length / self.lead_screw_pitch
-        print(f"Estimated number of revolutions for the full range of the syringe: {total_revolutions:.2f}")
-        
-        return total_revolutions
-
-# # Example of how it might be used:
-
-# # Initialize the Pump object
-# stepper = A4988(pin_mappings=pin_map, auto_calibrate=True, speed=2, pulseWidth=5E-6)
-# pump = Pump(stepper, syringe_volume=5, syringe_limits=(0, 10000))
-
-# # Prompt the user for lead screw data
-# pitch = pump.prompt_for_screw_data()
-
-# # Estimate revolutions for full syringe motion
-# revolutions = pump.calculate_revolutions_for_syringe()
+        # Store the calibration factor
+        self.volume_calibration = {'steps_per_ml': steps_per_ml}
+        print("Calibration complete: steps per mL =", steps_per_ml)
