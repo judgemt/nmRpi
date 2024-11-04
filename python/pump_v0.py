@@ -13,8 +13,8 @@ class Pump:
         self.motor = motor
         self.syringe_volume = syringe_volume
         self.syringe_limits = syringe_limits
-        self.ml_per_rotation = ml_per_rotation  # Direct mL per rotation if provided
-        self.motor_spr = motor_spr  # Steps per revolution for the motor
+        self.ml_per_rotation = ml_per_rotation
+        self.motor_spr = motor_spr
         self.volume_calibration = None if ml_per_rotation is None else {'ml_per_rotation': ml_per_rotation}
         self.movement_history = []
         self.retracted = False
@@ -35,11 +35,9 @@ class Pump:
         if steps > self.syringe_limits[1]:
             raise ValueError("Requested volume exceeds syringe limits.")
         
-        # Set direction based on "in" or "out" command
         motor_direction = "CW" if direction == "in" else "CCW"
         self.motor.move(steps, stepMode="full", direction=motor_direction, speed=speed)
         
-        # Record the movement
         self.record_movement(volume, direction)
 
     def _volume_to_steps(self, volume):
@@ -53,12 +51,10 @@ class Pump:
             int: Number of steps corresponding to the volume.
         """
         if self.volume_calibration:
-            # If ml_per_rotation is provided, calculate steps using it
             if 'ml_per_rotation' in self.volume_calibration:
                 ml_per_rotation = self.volume_calibration['ml_per_rotation']
                 steps_per_ml = self.motor_spr / ml_per_rotation
             else:
-                # Use steps_per_ml from calibration
                 steps_per_ml = self.volume_calibration.get('steps_per_ml')
         else:
             raise RuntimeError("No calibration or ml_per_rotation provided. Please calibrate or set ml_per_rotation.")
@@ -78,11 +74,67 @@ class Pump:
 
         print("Calibrating volume...")
 
-        # Collect data from points and calculate steps-per-ml (linear approximation here)
         total_steps = sum(p[0] for p in points)
         total_volume = sum(p[1] for p in points)
         steps_per_ml = total_steps / total_volume
         
-        # Store the calibration factor
         self.volume_calibration = {'steps_per_ml': steps_per_ml}
         print("Calibration complete: steps per mL =", steps_per_ml)
+
+    def set_limits(self, min_limit, max_limit):
+        """
+        Sets the min and max steps limits for the syringe's range of motion.
+        
+        Args:
+            min_limit (int): Minimum step limit.
+            max_limit (int): Maximum step limit.
+        """
+        self.syringe_limits = (min_limit, max_limit)
+
+    def record_movement(self, volume, direction):
+        """
+        Records a movement in the movement history.
+        
+        Args:
+            volume (float): Volume moved.
+            direction (str): Direction of movement, "in" or "out".
+        """
+        self.movement_history.append({'volume': volume, 'direction': direction, 'timestamp': time.time()})
+        print(f"Recorded movement: {volume} mL {direction}")
+
+    def clear_void(self):
+        """
+        Clear the void volume in tubing by moving the plunger to the retracted state.
+        """
+        print("Clearing void volume...")
+        self.move_volume(self.syringe_volume, direction="in")
+        self.retracted = True
+
+    def measure_void(self):
+        """
+        Measure the void volume in tubing. Placeholder for actual measurement.
+        """
+        print("Measuring void volume...")
+
+    def print_info(self):
+        """
+        Prints the current status and configuration of the pump.
+        """
+        print("\nPump Status and Configuration:")
+        print(f"- Syringe Volume: {self.syringe_volume} mL")
+        print(f"- Syringe Limits: {self.syringe_limits} steps")
+        print(f"- Motor Steps per Revolution (SPR): {self.motor_spr}")
+        print(f"- Volume Calibration: {self.volume_calibration}")
+        print(f"- ml per Rotation: {self.ml_per_rotation if self.ml_per_rotation else 'Not provided'}")
+        print(f"- Retracted State: {'Yes' if self.retracted else 'No'}")
+        print(f"- Sample From: {self.sample_from if self.sample_from else 'Not set'}")
+        print(f"- Sample To: {self.sample_to if self.sample_to else 'Not set'}")
+        
+        # Print recent movement history (last 5 movements)
+        if self.movement_history:
+            print("\nRecent Movements:")
+            for move in self.movement_history[-5:]:
+                timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(move['timestamp']))
+                print(f"  - {move['volume']} mL {move['direction']} at {timestamp}")
+        else:
+            print("No movements recorded yet.")
