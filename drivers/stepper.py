@@ -1,12 +1,16 @@
 import RPi.GPIO as GPIO
 import time
 from drivers.utils import calibrate_sleep_overhead, step, Microstep
+import json
 
 class A4988:
-    def __init__(self, pin_mappings, auto_calibrate=False, speed=None, pulseWidth=None, motor_spr=200):
+    def __init__(self, config_file, auto_calibrate=False, speed=None, pulseWidth=None, motor_spr=200):
         """Initialize stepper with GPIO pin mappings and microstep pins."""
+        GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
-        self.pins = pin_mappings
+        with open(config_file, 'r') as file:
+            self.pins = json.load(file)
+
         self.stepDelay = None  # This will be dynamically calculated
         self.sleep_overhead = None  # To store the calibrated sleep overhead
         self.pins_setup = False  # Flag to check if pins are set up correctly
@@ -31,7 +35,8 @@ class A4988:
             for pin_name, pin in self.pins.items():
                 print(f"Setting up {pin_name} pin at GPIO {pin['number']}")
                 GPIO.setup(pin['number'], GPIO.OUT)
-                GPIO.output(pin['number'], pin['init'])  # Set all pins to initial state
+                initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
+                GPIO.output(pin['number'], initial_state)  # Set all pins to initial state
             
             # Now, set up microstepping independent of the other pins
             self.microstep = Microstep(self.pins)
@@ -105,7 +110,6 @@ class A4988:
             print(f"Moving {revolutions} revolutions in {stepMode} mode, which is {total_steps} steps.")
         else:
             raise ValueError("Either revolutions or steps must be provided.")
-
         total_steps = int(round(total_steps))
 
         # Calculate steps per second (SPS)
