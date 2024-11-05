@@ -59,13 +59,13 @@ class Pump:
             if not self.retracted:
                 self._draw_syringe(volume=volume_to_dispense, speed=speed)
                 self.retracted = True
-                time.sleep(0.5)
+                time.sleep(1)
 
             # Push out the calculated volume in the syringe
             print(f"Pushing {volume_to_dispense:.2f} mL out of the syringe...")
             self._push_syringe(volume=volume_to_dispense, speed=speed)
             self.retracted = False  # Ensure we end in the pushed position
-            time.sleep(0.5)
+            time.sleep(1)
 
             # Record the movement and update remaining volume
             self.record_movement(volume_to_dispense, "in")
