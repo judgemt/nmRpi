@@ -106,6 +106,8 @@ class A4988:
         else:
             raise ValueError("Either revolutions or steps must be provided.")
 
+        total_steps = int(round(total_steps))
+
         # Calculate steps per second (SPS)
         sps = spr * speed
 

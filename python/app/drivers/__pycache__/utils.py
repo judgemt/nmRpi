@@ -46,8 +46,10 @@ def calibrate_step_delay(spr, speed, pulseWidth, n=1E4):
 
 def step(n, pin, pulseWidth, stepDelay):
 
-    start_time = time.time()
+    n = int(max(1, round(n)))
 
+    start_time = time.time()
+    
     for i in range(n):# 1 revolution
         GPIO.output(pin['STEP']['number'], GPIO.HIGH)
         time.sleep(pulseWidth)  # minimum pulse width # each of these calls costs 0.000125 s on average on an RPI4, mainly due to time.sleep overhead. Subtract this from the pulseWidth before using?
