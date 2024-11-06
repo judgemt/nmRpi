@@ -1,53 +1,39 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-from drivers.pump_v0 import Pump  # Import your Pump class
-from drivers.stepper import A4988  # Import your A4988 class
-from drivers.program import Program # Import your Program class
+from flask import Flask, render_template, redirect, url_for
 import RPi.GPIO as GPIO
+import time
+from drivers.stepper import A4988
+from drivers.pump_v0 import Pump
 
 app = Flask(__name__)
 
-# Initialize stepper and pump objects globally
-pin_map = {
-    'DIR': {'number': 27, 'init': GPIO.LOW},
-    'STEP': {'number': 26, 'init': GPIO.LOW},
-    'MS3': {'number': 23, 'init': GPIO.LOW},
-    'MS2': {'number': 22, 'init': GPIO.LOW},
-    'MS1': {'number': 21, 'init': GPIO.LOW},
-    'ENABLE': {'number': 20, 'init': GPIO.HIGH},
-}
-stepper = A4988(pin_mappings=pin_map, auto_calibrate=True, speed=2, pulseWidth=5E-6)
-pump = Pump(stepper, syringe_volume=5, syringe_limits=(0, 10000))
+# Define the pump initialization here, so it's ready for use in the app
+def initialize_pump():
+    # Initialize the A4988 motor object
+    stepper = A4988(config_file='config/pin_map.json', auto_calibrate=True, speed=.5, pulseWidth=5E-6)
+    
+    # Initialize the Pump object
+    pump = Pump(motor=stepper, syringe_volume=4, ml_per_rotation=4.5/5, step_mode='sixteenth')
+    return pump
+
+# Initialize the pump when the app starts
+pump = initialize_pump()
 
 @app.route('/')
-def home():
+def index():
     return render_template('index.html')
 
-@app.route('/setup', methods=['GET', 'POST'])
-def setup():
-    if request.method == 'POST':
-        syringe_volume = request.form['syringe_volume']
-        lead_screw_pitch = request.form['lead_screw_pitch']
-        pump.syringe_volume = float(syringe_volume)
-        pump.prompt_for_screw_data(float(lead_screw_pitch))
-        return redirect(url_for('calibration'))
-    return render_template('setup.html')
+@app.route('/run_pump')
+def run_pump():
+    try:
+        pump.move_volume(2, speed=.5)  # Run the pump command
+        return redirect(url_for('index'))  # Redirect to home page after running
+    except Exception as e:
+        print(f"Error running pump: {e}")
+        return "An error occurred while running the pump."
 
-@app.route('/calibration', methods=['GET', 'POST'])
-def calibration():
-    if request.method == 'POST':
-        num_points = request.form['num_points']
-        pump.calibrate_volume(int(num_points))
-        return redirect(url_for('program'))
-    return render_template('calibration.html')
-
-@app.route('/program', methods=['GET', 'POST'])
-def program():
-    if request.method == 'POST':
-        commands = request.form['commands']
-        program = Program(pump)
-        program.parse_and_execute(commands)
-        return redirect(url_for('program'))
-    return render_template('program.html')
-
+# Clean up GPIO when the app shuts down
+@app.teardown_appcontext
+def cleanup_gpio(exception):
+    pump.motor.disable()
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
