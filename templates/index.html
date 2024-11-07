@@ -2,12 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Run Pump</title>
+    <title>Pump Control</title>
 </head>
 <body>
     <h1>Pump Control</h1>
-    <form action="{{ url_for('run_pump') }}" method="get">
+    
+    <!-- Form for volume and speed control -->
+    <form action="{{ url_for('run_pump') }}" method="post">
+        <label for="volume">Enter Volume (mL):</label>
+        <input type="number" id="volume" name="volume" step="0.1" min="0" required value="{{ last_volume }}">
+        
+        <label for="speed">Enter Speed (mL/s):</label>
+        <input type="number" id="speed" name="speed" step="0.1" min="0" required value="{{ last_speed }}">
+        
         <button type="submit">Run Pump</button>
     </form>
+    
+    <!-- Log Display -->
+    <h2>Operation Log</h2>
+    <ul>
+        {% for entry in log %}
+            <li>{{ entry }}</li>
+        {% endfor %}
+    </ul>
 </body>
 </html>
