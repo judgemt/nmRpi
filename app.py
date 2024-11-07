@@ -10,49 +10,84 @@ app = Flask(__name__)
 # Initialize log to store pump actions
 log = []
 
-# Define the pump initialization here, so it's ready for use in the app
-def initialize_pump():
-    stepper = A4988(config_file='config/pin_map.json', auto_calibrate=True, speed=0.5, pulseWidth=5E-6)
-    pump = Pump(motor=stepper, syringe_volume=5, ml_per_rotation=1, step_mode='sixteenth')
+# Global variable for pump settings
+pump_settings = {
+    'syringe_volume': 5.0,
+    'ml_per_rotation': 1.0,
+    'step_mode': 'sixteenth',
+    'speed': 0.5
+}
+
+# Function to initialize the pump
+def initialize_pump(settings):
+    stepper = A4988(config_file='config/pin_map.json', auto_calibrate=True, speed=settings['speed'], pulseWidth=5E-6)
+    pump = Pump(
+        motor=stepper,
+        syringe_volume=settings['syringe_volume'],
+        ml_per_rotation=settings['ml_per_rotation'],
+        step_mode=settings['step_mode']
+    )
     return pump
 
 # Initialize the pump when the app starts
-pump = initialize_pump()
+pump = initialize_pump(pump_settings)
 
 @app.route('/')
 def index():
-    # Render the page without a pre-filled volume initially
     return render_template('index.html', last_volume="", last_speed=0.5, log=log)
+
+@app.route('/setup')
+def setup():
+    return render_template('setup.html', settings=pump_settings)
 
 @app.route('/run_pump', methods=['POST'])
 def run_pump():
     try:
-        # Get volume and speed from the form input
         volume = float(request.form['volume'])
         speed = float(request.form['speed'])
         
         # Run the pump command with the specified volume and speed
         pump.move_volume(volume, speed=speed)
         
-        # Calculate flow rate in mL/s
+        # Calculate flow rate and log
         flow_rate = speed * pump.ml_per_rotation
-        
-        # Create a timestamped log entry
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"{timestamp}: Moved {volume} mL at flow rate {flow_rate:.2f} mL/s"
         log.append(log_entry)
-        print(log_entry)
         
-        # Pass last inputs and log to template
         return render_template('index.html', last_volume=volume, last_speed=speed, log=log)
     
     except Exception as e:
         error_message = f"Error running pump: {e}"
-        print(error_message)
         log.append(error_message)
         return render_template('index.html', last_volume="", last_speed=0.5, log=log)
 
-# Disable the motor when the app context shuts down
+@app.route('/setup_pump', methods=['POST'])
+def setup_pump():
+    try:
+        # Update pump settings with form inputs
+        pump_settings['syringe_volume'] = float(request.form['syringe_volume'])
+        pump_settings['ml_per_rotation'] = float(request.form['ml_per_rotation'])
+        pump_settings['step_mode'] = request.form['step_mode']
+        pump_settings['speed'] = float(request.form['speed'])
+        
+        # Reinitialize the pump with new settings
+        global pump
+        pump = initialize_pump(pump_settings)
+        
+        # Log the setup action
+        setup_log = f"Pump reconfigured with: syringe_volume={pump_settings['syringe_volume']} mL, " \
+                    f"ml_per_rotation={pump_settings['ml_per_rotation']} mL, " \
+                    f"step_mode={pump_settings['step_mode']}, speed={pump_settings['speed']} rps"
+        log.append(setup_log)
+        
+        return redirect(url_for('index'))
+    
+    except Exception as e:
+        error_message = f"Error setting up pump: {e}"
+        log.append(error_message)
+        return redirect(url_for('setup'))
+
 @app.teardown_appcontext
 def disable_motor(exception):
     pump.motor.disable()

@@ -3,8 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <title>Pump Control</title>
+    <style>
+        /* Style for positioning the setup button in the upper right */
+        .top-right-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+    </style>
 </head>
 <body>
+    <!-- Pump Setup Button in the Upper Right Corner -->
+    <div class="top-right-button">
+        <form action="{{ url_for('setup') }}" method="get">
+            <button type="submit">Pump Setup</button>
+        </form>
+    </div>
+
+    <!-- Main content of the page -->
     <h1>Pump Control</h1>
     
     <!-- Form for volume and speed control -->
@@ -12,7 +28,7 @@
         <label for="volume">Enter Volume (mL):</label>
         <input type="number" id="volume" name="volume" step="0.1" min="0" required value="{{ last_volume }}">
         
-        <label for="speed">Enter Speed (mL/s):</label>
+        <label for="speed">Enter Speed (rps):</label>
         <input type="number" id="speed" name="speed" step="0.1" min="0" required value="{{ last_speed }}">
         
         <button type="submit">Run Pump</button>
