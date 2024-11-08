@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <title>Pump Control</title>
     <style>
-        /* Positioning the button group in the top right */
+        /* Positioning the buttons in the upper right */
         .top-right-buttons {
             position: absolute;
             top: 20px;
             right: 20px;
             display: flex;
-            flex-direction: column;
-            gap: 10px; /* Spacing between buttons */
+            gap: 10px;
         }
     </style>
 </head>
@@ -35,9 +34,6 @@
         </form>
         <form action="{{ url_for('program_editor') }}" method="get">
             <button type="submit">Program Editor</button>
-        </form>
-        <form action="{{ url_for('run_program') }}" method="get">
-            <button type="submit">Run Programs</button>
         </form>
     </div>
 

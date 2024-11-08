@@ -121,9 +121,19 @@ def parse_command(command):
     """Parse a command line and return the action and values if valid."""
     for action, pattern in COMMANDS.items():
         match = re.match(pattern, command)
+    for action, pattern in COMMANDS.items():
+        match = re.match(pattern, command)
         if match:
             if action == "MOVE":
+            if action == "MOVE":
                 volume = float(match.group(1))
+                speed = float(match.group(4))
+                return action, volume, speed
+            elif action == "PAUSE":
+                duration = float(match.group(1))
+                return action, duration
+            elif action == "END":
+                return action, None
                 speed = float(match.group(4))
                 return action, volume, speed
             elif action == "PAUSE":
@@ -180,37 +190,19 @@ def execute_program(program_content):
         if not is_running:
             break
         is_paused.wait()  # Wait here if paused
-        
         command = line.strip()
-        print(f"Processing command: {command}")  # Debugging
         log.append(f"Executing: {command}")
-        
-        try:
-            action, param1, param2 = parse_command(command)
-            if action == "MOVE":
-                speed = param2 if param2 is not None else pump_settings['speed']  # Default to pump speed
-                pump.move_volume(param1, speed=speed)
-            elif action == "PAUSE":
-                time.sleep(param1)  # Pause for the specified duration
-            elif action == "END":
-                log.append("Program execution complete.")
-                print("Program execution complete.")
-                break
-            else:
-                log.append(f"Unknown command: {command}")
-                print(f"Unknown command: {command}")
-        except Exception as e:
-            log.append(f"Error executing command '{command}': {e}")
-            print(f"Error executing command '{command}': {e}")
+        print(f"Executing: {command}")  # For debugging; replace with actual execution logic
+        time.sleep(1)  # Simulate action duration
         
     is_running = False
-    log.append("Program execution ended.")
-    print("Program execution ended.")
+    log.append("Program execution complete.")
 
 @app.route('/start_program', methods=['POST'])
 def start_program():
     """Starts executing the loaded program in a separate thread."""
     program_content = request.form['program_content']
+    thread = threading.Thread(target=execute_program, args=(program_content,))
     thread = threading.Thread(target=execute_program, args=(program_content,))
     thread.start()
     return jsonify({'status': 'started'})
@@ -241,6 +233,8 @@ def get_log():
 
 @app.teardown_appcontext
 def disable_motor(exception):
+    pump.motor.disable()
+
     pump.motor.disable()
 
 if __name__ == '__main__':

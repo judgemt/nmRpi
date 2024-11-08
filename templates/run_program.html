@@ -39,11 +39,6 @@
     </ul>
 
     <script>
-        
-        $(document).ready(function() {
-            console.log("JavaScript is working!");
-        });
-
         function loadProgram() {
             const programName = $("#program_name").val();
             $.post("{{ url_for('load_program') }}", { program_name: programName }, function(data) {
@@ -82,34 +77,8 @@
         }
 
         function updateLog() {
-            $.get("{{ url_for('get_log') }}", function(data) {
-                const newLog = data.log;
-                $("#log").empty(); // Clear the current log
-                newLog.forEach(entry => {
-                    $("#log").append(`<li>${entry}</li>`); // Append each log entry
-                });
-            });
+            // Poll for log updates (e.g., via AJAX if implemented to refresh log entries)
         }
-
-        // Call updateLog periodically during program execution
-        setInterval(updateLog, 1000); // Update log every second
-
-        function monitorProgramStatus() {
-            // Check periodically if the program is still running
-            setInterval(() => {
-                $.get("{{ url_for('get_log') }}", function(data) {
-                    const log = data.log;
-                    if (log.includes("Program execution complete.")) {
-                        $("#pauseButton, #resumeButton, #stopButton").hide();
-                        $("#runButton").show();
-                    }
-                });
-            }, 1000); // Check every second
-        }
-
-        // Call monitorProgramStatus when starting the program
-        monitorProgramStatus(); 
-               
     </script>
 </body>
 </html>
