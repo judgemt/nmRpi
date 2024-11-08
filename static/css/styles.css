@@ -15,3 +15,12 @@ nav ul li {
 .container {
     margin-top: 20px;
 }
+
+.top-right-buttons {
+    position: absolute;
+    top: 20px; /* Distance from the top */
+    right: 20px; /* Distance from the right */
+    display: flex;
+    flex-direction: column; /* Vertical stacking */
+    gap: 10px; /* Space between buttons */
+}

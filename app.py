@@ -183,16 +183,16 @@ def execute_program(program_content):
     global is_running
     is_running = True
     log.clear()
-    
+
     for line in program_content.splitlines():
         if not is_running:
             break
         is_paused.wait()  # Wait here if paused
-        
+
         command = line.strip()
         print(f"Processing command: {command}")  # Debugging
         log.append(f"Executing: {command}")
-        
+
         try:
             action, param1, param2 = parse_command(command)
             if action == "MOVE":
@@ -203,6 +203,7 @@ def execute_program(program_content):
             elif action == "END":
                 log.append("Program execution complete.")
                 print("Program execution complete.")
+                stop_program()  # Trigger the stop logic
                 break
             else:
                 log.append(f"Unknown command: {command}")
@@ -210,11 +211,11 @@ def execute_program(program_content):
         except Exception as e:
             log.append(f"Error executing command '{command}': {e}")
             print(f"Error executing command '{command}': {e}")
-        
+
     is_running = False
     log.append("Program execution ended.")
     print("Program execution ended.")
-
+    
 @app.route('/start_program', methods=['POST'])
 def start_program():
     """Starts executing the loaded program in a separate thread."""

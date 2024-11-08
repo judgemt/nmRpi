@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Program Editor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    {% include 'navigation.html' %}
     <h1>Program Editor</h1>
 
     <!-- Form to save the program content with a specified name -->
