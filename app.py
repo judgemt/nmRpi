@@ -121,10 +121,7 @@ def parse_command(command):
     """Parse a command line and return the action and values if valid."""
     for action, pattern in COMMANDS.items():
         match = re.match(pattern, command)
-    for action, pattern in COMMANDS.items():
-        match = re.match(pattern, command)
         if match:
-            if action == "MOVE":
             if action == "MOVE":
                 volume = float(match.group(1))
                 speed = float(match.group(4))
@@ -203,7 +200,6 @@ def start_program():
     """Starts executing the loaded program in a separate thread."""
     program_content = request.form['program_content']
     thread = threading.Thread(target=execute_program, args=(program_content,))
-    thread = threading.Thread(target=execute_program, args=(program_content,))
     thread.start()
     return jsonify({'status': 'started'})
 
@@ -233,8 +229,6 @@ def get_log():
 
 @app.teardown_appcontext
 def disable_motor(exception):
-    pump.motor.disable()
-
     pump.motor.disable()
 
 if __name__ == '__main__':
