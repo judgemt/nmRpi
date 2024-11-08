@@ -141,23 +141,47 @@ def parse_command(command):
 
     return None, None, None
 
-app.route('/save_program', methods=['POST'])
+import re
+
+@app.route('/save_program', methods=['POST'])
 def save_program():
     """Saves the program content under the specified name and redirects back to the main page."""
-    program_name = request.form['program_name']
-    program_content = request.form['program_content']
+    try:
+        # Get form data
+        program_name = request.form['program_name']
+        program_content = request.form['program_content']
+        
+        # Validate program name
+        if not program_name or not re.match(r'^[\w\s-]+$', program_name):
+            raise ValueError("Invalid program name. Use only letters, numbers, spaces, underscores, or hyphens.")
+        
+        # Sanitize the program name
+        safe_program_name = "".join([c for c in program_name if c.isalnum() or c in [' ', '_', '-']]).strip().replace(" ", "_")
+        if not safe_program_name:
+            raise ValueError("Program name cannot be empty after sanitization.")
+        
+        # Ensure the program directory exists
+        if not os.path.exists(PROGRAMS_DIR):
+            os.makedirs(PROGRAMS_DIR)
+
+        # Save the program content to a JSON file
+        program_file = os.path.join(PROGRAMS_DIR, f"{safe_program_name}.json")
+        with open(program_file, 'w', encoding='utf-8') as file:
+            json.dump({'name': program_name, 'content': program_content}, file, ensure_ascii=False, indent=4)
+
+        # Flash success message and redirect
+        flash(f"Program '{program_name}' saved successfully.")
+        return redirect(url_for('index'))
+
+    except ValueError as ve:
+        # Handle validation errors
+        flash(f"Error: {ve}")
+        return redirect(url_for('program_editor'))
     
-    # Ensure the program name is a valid filename
-    safe_program_name = "".join([c for c in program_name if c.isalpha() or c.isdigit() or c == ' ']).rstrip()
-    program_file = os.path.join(PROGRAMS_DIR, f"{safe_program_name}.json")
-
-    # Save the program content to a file with the specified name
-    with open(program_file, 'w') as file:
-        json.dump({'name': program_name, 'content': program_content}, file)
-
-    # Redirect back to the main page with a flash message
-    flash(f"Program '{program_name}' saved successfully.")
-    return redirect(url_for('index'))
+    except Exception as e:
+        # Catch-all for unexpected errors
+        flash(f"An unexpected error occurred: {e}")
+        return redirect(url_for('program_editor'))
 
 @app.route('/run_program')
 def run_program():
@@ -215,7 +239,7 @@ def execute_program(program_content):
     is_running = False
     log.append("Program execution ended.")
     print("Program execution ended.")
-    
+
 @app.route('/start_program', methods=['POST'])
 def start_program():
     """Starts executing the loaded program in a separate thread."""

@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <title>Run Program</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    {% include 'navigation.html' %}
+    
     <h1>Run Program</h1>
     
     <!-- Load Program Section -->
