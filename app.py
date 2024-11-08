@@ -119,28 +119,29 @@ COMMANDS = {
 
 def parse_command(command):
     """Parse a command line and return the action and values if valid."""
-    for action, pattern in COMMANDS.items():
-        match = re.match(pattern, command)
+    command = command.lower()  # Normalize command to lowercase
+    if command.startswith("move"):
+        match = re.match(r'^move (\d+(\.\d+)?)\s*(ml)?\s*speed (\d+(\.\d+)?)\s*(ml/s)?$', command)
         if match:
-            if action == "MOVE":
+            volume = float(match.group(1))
+            speed = float(match.group(4))
+            return "MOVE", volume, speed
+        else:
+            match = re.match(r'^move (\d+(\.\d+)?)$', command)
+            if match:
                 volume = float(match.group(1))
-                speed = float(match.group(4))
-                return action, volume, speed
-            elif action == "PAUSE":
-                duration = float(match.group(1))
-                return action, duration
-            elif action == "END":
-                return action, None
-                speed = float(match.group(4))
-                return action, volume, speed
-            elif action == "PAUSE":
-                duration = float(match.group(1))
-                return action, duration
-            elif action == "END":
-                return action, None
+                return "MOVE", volume, None
+    elif command.startswith("pause"):
+        match = re.match(r'^pause (\d+(\.\d+)?)$', command)
+        if match:
+            duration = float(match.group(1))
+            return "PAUSE", duration, None
+    elif command == "end":
+        return "END", None, None
+
     return None, None, None
 
-@app.route('/save_program', methods=['POST'])
+app.route('/save_program', methods=['POST'])
 def save_program():
     """Saves the program content under the specified name and redirects back to the main page."""
     program_name = request.form['program_name']
@@ -187,19 +188,48 @@ def execute_program(program_content):
         if not is_running:
             break
         is_paused.wait()  # Wait here if paused
+        
         command = line.strip()
+        print(f"Processing command: {command}")  # Debugging
         log.append(f"Executing: {command}")
-        print(f"Executing: {command}")  # For debugging; replace with actual execution logic
-        time.sleep(1)  # Simulate action duration
+        
+        try:
+            action, param1, param2 = parse_command(command)
+            if action == "MOVE":
+                speed = param2 if param2 is not None else pump_settings['speed']  # Default to pump speed
+                pump.move_volume(param1, speed=speed)
+            elif action == "PAUSE":
+                time.sleep(param1)  # Pause for the specified duration
+            elif action == "END":
+                log.append("Program execution complete.")
+                print("Program execution complete.")
+                break
+            else:
+                log.append(f"Unknown command: {command}")
+                print(f"Unknown command: {command}")
+        except Exception as e:
+            log.append(f"Error executing command '{command}': {e}")
+            print(f"Error executing command '{command}': {e}")
         
     is_running = False
-    log.append("Program execution complete.")
+    log.append("Program execution ended.")
+    print("Program execution ended.")
 
 @app.route('/start_program', methods=['POST'])
 def start_program():
     """Starts executing the loaded program in a separate thread."""
+    global is_paused, is_running
+    is_paused.set()  # Ensure the thread isn't paused initially
+    is_running = True
     program_content = request.form['program_content']
-    thread = threading.Thread(target=execute_program, args=(program_content,))
+    print(f"Received program content for execution:\n{program_content}")
+    
+    def complete_program():
+        execute_program(program_content)
+        # Notify the front-end that the program has finished
+        is_running = False
+    
+    thread = threading.Thread(target=complete_program)
     thread.start()
     return jsonify({'status': 'started'})
 
