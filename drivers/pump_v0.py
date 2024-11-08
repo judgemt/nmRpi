@@ -17,7 +17,7 @@ class Pump:
         self.step_mode = step_mode
         self.movement_history = []
         self.retracted = False  # Track syringe position (True if fully drawn, False if fully pushed)
-        self.is_disabled = True  # Track motor state
+        # self.is_disabled = True  # Track motor state
 
         # Set the step mode initially
         self.set_step_mode(step_mode)
@@ -28,11 +28,12 @@ class Pump:
         self.motor.set_step_type(step_mode)
         print(f"Step mode set to {self.step_mode} for all movements.")
 
-    def disable(self):
-        if not self.is_disabled:
-            self.motor.disable()
-            print("Motor disabled")
-            self.is_disabled = True  # Only log the state change    
+    # def disable(self):
+    #     # NOTE: this is only provided as a convenient way to ensure the pump is disabled when necessary. 
+    #     if not self.is_disabled:
+    #         self.motor.disable()
+    #         print("Motor disabled")
+    #         self.is_disabled = True  # Only log the state change    
 
     def move_volume(self, volume, speed=1):
         """

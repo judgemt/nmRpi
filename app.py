@@ -119,26 +119,18 @@ COMMANDS = {
 
 def parse_command(command):
     """Parse a command line and return the action and values if valid."""
-    command = command.lower()  # Normalize command to lowercase
-    if command.startswith("move"):
-        match = re.match(r'^move (\d+(\.\d+)?)\s*(ml)?\s*speed (\d+(\.\d+)?)\s*(ml/s)?$', command)
+    for action, pattern in COMMANDS.items():
+        match = re.match(pattern, command)
         if match:
-            volume = float(match.group(1))
-            speed = float(match.group(4))
-            return "MOVE", volume, speed
-        else:
-            match = re.match(r'^move (\d+(\.\d+)?)$', command)
-            if match:
+            if action == "MOVE":
                 volume = float(match.group(1))
-                return "MOVE", volume, None
-    elif command.startswith("pause"):
-        match = re.match(r'^pause (\d+(\.\d+)?)$', command)
-        if match:
-            duration = float(match.group(1))
-            return "PAUSE", duration, None
-    elif command == "end":
-        return "END", None, None
-
+                speed = float(match.group(4))
+                return action, volume, speed
+            elif action == "PAUSE":
+                duration = float(match.group(1))
+                return action, duration
+            elif action == "END":
+                return action, None
     return None, None, None
 
 @app.route('/save_program', methods=['POST'])
@@ -218,18 +210,8 @@ def execute_program(program_content):
 @app.route('/start_program', methods=['POST'])
 def start_program():
     """Starts executing the loaded program in a separate thread."""
-    global is_paused, is_running
-    is_paused.set()  # Ensure the thread isn't paused initially
-    is_running = True
     program_content = request.form['program_content']
-    print(f"Received program content for execution:\n{program_content}")
-    
-    def complete_program():
-        execute_program(program_content)
-        # Notify the front-end that the program has finished
-        is_running = False
-    
-    thread = threading.Thread(target=complete_program)
+    thread = threading.Thread(target=execute_program, args=(program_content,))
     thread.start()
     return jsonify({'status': 'started'})
 
@@ -255,14 +237,11 @@ def stop_program():
 
 @app.route('/log', methods=['GET'])
 def get_log():
-    """Returns the current execution log as JSON."""
     return jsonify({'log': log})
 
 @app.teardown_appcontext
 def disable_motor(exception):
-    # Disable the motor only for critical routes, not during log updates
-    if request.endpoint not in ['get_log', 'static']:
-        pump.motor.disable()
-        
+    pump.motor.disable()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
