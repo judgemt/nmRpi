@@ -4,6 +4,12 @@ from drivers.utils import calibrate_sleep_overhead, step, Microstep
 import json
 
 class A4988:
+    
+    # Pin label constants
+    PIN_ENABLE = "ENABLE"
+    PIN_DIRECTION = "DIR"
+    PIN_STEP = "STEP"
+ 
     def __init__(self, config_file, auto_calibrate=False, speed=None, pulseWidth=None, motor_spr=200):
         """Initialize stepper with GPIO pin mappings and microstep pins."""
         GPIO.setwarnings(False)
@@ -72,7 +78,7 @@ class A4988:
                 initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
                 self.set_pin_state(pin_name, initial_state)
 
-                if pin_name == "ENABLE":
+                if pin_name == self.PIN_ENABLE:
                     self.enabled = (initial_state == GPIO.LOW)
 
             self.microstep = Microstep(self.pins)
@@ -108,7 +114,7 @@ class A4988:
             GPIO.output(self.pins['DIR']['number'], GPIO.HIGH)
             print(f"Direction set to Clockwise")
         else:
-            GPIO.output(self.pins['DIR']['number'], GPIO.LOW)
+            GPIO.output(self.pins[self.PIN_DIRECTION]['number'], GPIO.LOW)
             print(f"Direction set to Counter-Clockwise")
 
     def calibrate(self):
