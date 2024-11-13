@@ -17,6 +17,14 @@ app.secret_key = 'your_secret_key'  # Required for flash messages
 # Initialize log to store pump actions
 log = []
 
+# Include thread locking to avoid race conditions
+log_lock = threading.Lock()
+
+def add_to_log(message):
+    """Thread-safe addition of messages to the log."""
+    with log_lock:
+        log.append(message)
+
 # Directory to store program files
 PROGRAMS_DIR = 'programs'
 if not os.path.exists(PROGRAMS_DIR):
@@ -296,6 +304,18 @@ def log_stream():
             time.sleep(0.5)  # Prevent high CPU usage
 
     return Response(generate_logs(), content_type='text/event-stream')
+
+@app.route('/pump_status', methods=['GET'])
+def pump_status():
+    """Returns the current status of the pump."""
+    status = {
+        "enabled": pump.is_enabled(),
+        "running": is_running,
+        "paused": not is_paused.is_set(),
+        "setup": True,  # Placeholder for setup condition
+        "error": False  # Add real logic for error detection
+    }
+    return jsonify(status)
 
 @app.teardown_appcontext
 def disable_motor(exception):

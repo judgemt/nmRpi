@@ -16,6 +16,7 @@ nav ul li {
     margin-top: 20px;
 }
 
+/* Menu buttons */
 .top-right-buttons {
     position: absolute; /* Position the buttons relative to the nearest positioned parent */
     top: 20px; /* Distance from the top */
@@ -26,3 +27,48 @@ nav ul li {
     z-index: 1000; /* Ensure buttons appear above other elements */
     pointer-events: auto; /* Ensure buttons are clickable even if other elements overlap */
 }
+
+/* Pump status bar */
+.pump-status {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background-color: rgba(255, 255, 255, 0.9); /* Light background for visibility */
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+.pump-status ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+.pump-status li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.pump-status li:last-child {
+    margin-bottom: 0;
+}
+
+.status-circle {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    background-color: gray; /* Default color */
+}
+
+/* Status-specific colors */
+.status-enabled .status-circle { background-color: green; }
+.status-running .status-circle { background-color: green; }
+.status-paused .status-circle { background-color: yellow; }
+.status-setup .status-circle { background-color: green; }
+.status-error .status-circle { background-color: red; }

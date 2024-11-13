@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <title>Pump Control</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/status.js') }}"></script>
 </head>
 <body>
     
     {% include 'navigation.html' %}
+    {% include 'status.html' %}
 
     <!-- Display any flash messages -->
     {% with messages = get_flashed_messages() %}
