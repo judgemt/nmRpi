@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 import RPi.GPIO as GPIO
 import time
 import re
 import json
 import os
 import threading
+import requests 
 from datetime import datetime
 from drivers.stepper import A4988
 from drivers.pump_v0 import Pump
@@ -141,8 +142,6 @@ def parse_command(command):
 
     return None, None, None
 
-import re
-
 @app.route('/save_program', methods=['POST'])
 def save_program():
     """Saves the program content under the specified name and redirects back to the main page."""
@@ -227,7 +226,9 @@ def execute_program(program_content):
                 elif action == "END":
                     log.append("Program execution complete.")
                     print("Program execution complete.")
-                    stop_program()  # Trigger the stop logic
+
+                    # Trigger the stop logic
+                    requests.post("http://127.0.0.1:5000/stop_program")
                     break
                 else:
                     log.append(f"Unknown command: {command}")
@@ -281,6 +282,20 @@ def stop_program():
 @app.route('/log', methods=['GET'])
 def get_log():
     return jsonify({'log': log})
+
+@app.route('/log_stream')
+def log_stream():
+    def generate_logs():
+        """Generator that yields new log entries as they are added."""
+        last_log_length = 0
+        while True:
+            if len(log) > last_log_length:  # Only send new logs
+                for entry in log[last_log_length:]:
+                    yield f"data: {entry}\n\n"
+                last_log_length = len(log)
+            time.sleep(0.5)  # Prevent high CPU usage
+
+    return Response(generate_logs(), content_type='text/event-stream')
 
 @app.teardown_appcontext
 def disable_motor(exception):

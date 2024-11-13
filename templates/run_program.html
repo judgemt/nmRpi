@@ -74,10 +74,21 @@
 
         function stopProgram() {
             $.post("{{ url_for('stop_program') }}", function() {
+                // Reset buttons
                 $("#pauseButton, #resumeButton, #stopButton").hide();
                 $("#runButton").show();
             });
         }
+
+        // Automatically reset buttons when program ends
+        $(document).ready(function() {
+            const eventSource = new EventSource("{{ url_for('log_stream') }}");
+            eventSource.onmessage = function(event) {
+                if (event.data.includes("Program execution complete.")) {
+                    stopProgram();
+                }
+            };
+        });
 
         function updateLog() {
             // Poll for log updates (e.g., via AJAX if implemented to refresh log entries)
