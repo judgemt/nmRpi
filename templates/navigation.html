@@ -1,4 +1,7 @@
 <div class="top-right-buttons">
+    <form action="{{ url_for('index') }}" method="get">
+        <button type="submit">Home</button>
+    </form>
     <form action="{{ url_for('setup') }}" method="get">
         <button type="submit">Pump Setup</button>
     </form>

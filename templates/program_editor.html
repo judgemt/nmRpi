@@ -3,21 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Program Editor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-    <div class="top-right-buttons">
-        <form action="{{ url_for('setup') }}" method="get">
-            <button type="submit">Pump Setup</button>
-        </form>
-        <form action="{{ url_for('program_editor') }}" method="get">
-            <button type="submit">Program Editor</button>
-        </form>
-        <form action="{{ url_for('run_program') }}" method="get">
-            <button type="submit">Run Program</button>
-        </form>
-    </div>
-    
+    {% include 'navigation.html' %}     
     <h1>Program Editor</h1>
 
     <!-- Form to save the program content with a specified name -->
