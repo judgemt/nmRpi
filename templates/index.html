@@ -7,9 +7,19 @@
 </head>
 <body>
 
-    {% include 'navigation.html' %}
-
+    <div class="top-right-buttons">
+        <form action="{{ url_for('setup') }}" method="get">
+            <button type="submit">Pump Setup</button>
+        </form>
+        <form action="{{ url_for('program_editor') }}" method="get">
+            <button type="submit">Program Editor</button>
+        </form>
+        <form action="{{ url_for('run_program') }}" method="get">
+            <button type="submit">Run Program</button>
+        </form>
+    </div>
     
+
     <!-- Display any flash messages -->
     {% with messages = get_flashed_messages() %}
         {% if messages %}

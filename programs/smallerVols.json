@@ -1,0 +1,4 @@
+{
+    "name": "smallerVols",
+    "content": "move 1\r\npause 0.2\r\nmove 0.8\r\npause 0.2\r\nmove 0.6\r\npause 0.2\r\nmove 0.4\r\npause 0.2\r\nmove 0.2\r\nend"
+}
