@@ -29,11 +29,39 @@ class A4988:
                 raise ValueError("Speed and pulseWidth must be provided for auto calibration.")
             self.calibrate()
     
+    def _validate_state(self, require_enabled=False, require_calibrated=False):
+        """
+        Validates the state of the motor and raises appropriate errors if conditions are not met.
+        
+        Args:
+            require_enabled (bool): If True, checks if the motor is enabled.
+            require_calibrated (bool): If True, checks if the sleep overhead is calibrated.
+        """
+        if not self.pins_setup:
+            raise RuntimeError("Pins have not been set up correctly.")
+        if require_enabled and not self.enabled:
+            raise RuntimeError("Motor is not enabled. Please enable the motor before proceeding.")
+        if require_calibrated and self.sleep_overhead is None:
+            raise RuntimeError("Sleep overhead not calibrated. Please run calibrate() first.")
+
     def set_pin_state(self, pin_name, state):
-        """Set the state of a GPIO pin."""
+        """
+        Set the state of a GPIO pin.
+
+        Args:
+            pin_name (str): Name of the pin (e.g., 'ENABLE', 'DIR').
+            state (int): Desired GPIO state (GPIO.HIGH or GPIO.LOW).
+
+        Raises:
+            ValueError: If the pin name is not defined or not configured as output.
+        """
         if pin_name not in self.pins:
             raise ValueError(f"Pin {pin_name} is not defined in the configuration.")
+        if not GPIO.gpio_function(self.pins[pin_name]['number']) == GPIO.OUT:
+            raise ValueError(f"Pin {pin_name} is not configured as an output pin.")
+        
         GPIO.output(self.pins[pin_name]['number'], state)
+        print(f"Set pin {pin_name} to {'HIGH' if state == GPIO.HIGH else 'LOW'}.")
 
     def setup_pins(self):
         """Set up the GPIO pins."""
@@ -52,32 +80,30 @@ class A4988:
             print("All pins set up successfully.")
 
         except Exception as e:
-            print(f"Error during pin setup: {e}")
+            print(f"Error during pin setup: {e}. You may want to disconnect power to motor to avoid damage.")
             self.pins_setup = False
             self.enabled = False
-
+            # Clean up GPIO resources only in case of failure
+            GPIO.cleanup()
+            
     def enable(self):
         """Enable the motor driver (ENABLE pin is active low)."""
-        if not self.pins_setup:
-            raise RuntimeError("Pins have not been set up correctly.")
+        self._validate_state()
         GPIO.output(self.pins['ENABLE']['number'], GPIO.LOW)
         self.enabled = True  # Update the enabled state
         print("Motor enabled")
 
     def disable(self):
         """Disable the motor driver (ENABLE pin is active low)."""
-        if not self.pins_setup:
-            raise RuntimeError("Pins have not been set up correctly.")
+        self._validate_state()
         GPIO.output(self.pins['ENABLE']['number'], GPIO.HIGH)
         self.enabled = False  # Update the enabled state
         print("Motor disabled")
 
     def set_direction(self, direction):
         """Set direction to Clockwise (HIGH) or Counter-Clockwise (LOW)."""
-        if not self.pins_setup:
-            raise RuntimeError("Pins have not been set up correctly.")
-        if not self.enabled:
-            raise RuntimeError("Motor is not enabled. Please enable the motor before setting direction.")
+        self._validate_state(require_enabled=True)
+
         if direction == "CW":
             GPIO.output(self.pins['DIR']['number'], GPIO.HIGH)
             print(f"Direction set to Clockwise")
@@ -87,11 +113,8 @@ class A4988:
 
     def calibrate(self):
         """Calibrate the sleep overhead and store it."""
-        if not self.pins_setup:
-            raise RuntimeError("Pins have not been set up correctly.")
-        if not self.enabled:
-            raise RuntimeError("Motor is not enabled. Please enable the motor before calibration.")
-        
+        self._validate_state(require_enabled=True)
+
         # Measure and store the sleep overhead using the new calibration function
         self.sleep_overhead = calibrate_sleep_overhead()  # Only measure sleep overhead
         print(f"Calibration complete: sleep_overhead = {self.sleep_overhead}")
@@ -104,12 +127,7 @@ class A4988:
 
     def move(self, revolutions=None, steps=None, stepMode="full", speed=1, direction="CW", pulseWidth=5E-6):
         """Move the stepper motor by a given number of revolutions or steps in the specified direction."""
-        if not self.pins_setup:
-            raise RuntimeError("Pins have not been set up correctly.")
-        if not self.enabled:
-            raise RuntimeError("Motor is not enabled. Please enable the motor before attempting to move.")       
-        if self.sleep_overhead is None:
-            raise RuntimeError("Sleep overhead not calibrated. Please run calibrate() first.")
+        self._validate_state(require_enabled=True, require_calibrated=True)
 
         # Set microstepping mode
         self.microstep.set_mode(stepMode)
@@ -151,6 +169,21 @@ class A4988:
         # Disable the motor after movement is complete
         self.disable()
 
+    def reset(self):
+        """Reset the motor to a safe state."""
+        try:
+            print("Resetting motor to safe state...")
+            # Disable the motor to ensure it's not active during reset
+            if self.enabled:
+                self.disable()
+            # Reinitialize GPIO pins
+            self.setup_pins()
+            print("Motor reset successfully.")
+        except Exception as e:
+            print(f"Error during motor reset: {e}")
+            self.pins_setup = False
+            self.enabled = False
+            
     def cleanup(self):
         """Clean up the GPIO resources."""
         print("Cleaning up GPIO resources for the stepper.")
