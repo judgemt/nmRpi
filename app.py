@@ -206,39 +206,39 @@ def execute_program(program_content):
     """Runs the program, with the option to pause and resume."""
     global is_running
     is_running = True
-    log.clear()
+    log.clear()  # Clear old logs at the start of execution
 
-    for line in program_content.splitlines():
-        if not is_running:
-            break
-        is_paused.wait()  # Wait here if paused
-
-        command = line.strip()
-        print(f"Processing command: {command}")  # Debugging
-        log.append(f"Executing: {command}")
-
-        try:
-            action, param1, param2 = parse_command(command)
-            if action == "MOVE":
-                speed = param2 if param2 is not None else pump_settings['speed']  # Default to pump speed
-                pump.move_volume(param1, speed=speed)
-            elif action == "PAUSE":
-                time.sleep(param1)  # Pause for the specified duration
-            elif action == "END":
-                log.append("Program execution complete.")
-                print("Program execution complete.")
-                stop_program()  # Trigger the stop logic
+    with app.app_context():  # Add application context
+        for line in program_content.splitlines():
+            if not is_running:
                 break
-            else:
-                log.append(f"Unknown command: {command}")
-                print(f"Unknown command: {command}")
-        except Exception as e:
-            log.append(f"Error executing command '{command}': {e}")
-            print(f"Error executing command '{command}': {e}")
+            is_paused.wait()  # Wait here if paused
 
-    is_running = False
-    log.append("Program execution ended.")
-    print("Program execution ended.")
+            command = line.strip()
+            log.append(f"Executing: {command}")  # Log execution
+
+            try:
+                action, param1, param2 = parse_command(command)
+                if action == "MOVE":
+                    speed = param2 if param2 is not None else pump_settings['speed']
+                    pump.move_volume(param1, speed=speed)
+                elif action == "PAUSE":
+                    time.sleep(param1)
+                elif action == "END":
+                    log.append("Program execution complete.")
+                    print("Program execution complete.")
+                    stop_program()  # Trigger the stop logic
+                    break
+                else:
+                    log.append(f"Unknown command: {command}")
+                    print(f"Unknown command: {command}")
+            except Exception as e:
+                log.append(f"Error executing command '{command}': {e}")
+                print(f"Error executing command '{command}': {e}")
+
+        is_running = False
+        log.append("Program execution ended.")
+        print("Program execution ended.")
 
 @app.route('/start_program', methods=['POST'])
 def start_program():
