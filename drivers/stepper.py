@@ -119,7 +119,6 @@ class A4988:
 
     def calibrate(self):
         """Calibrate the sleep overhead and store it."""
-        self._validate_state(require_enabled=True)
 
         # Measure and store the sleep overhead using the new calibration function
         self.sleep_overhead = calibrate_sleep_overhead()  # Only measure sleep overhead
@@ -133,7 +132,7 @@ class A4988:
 
     def move(self, revolutions=None, steps=None, stepMode="full", speed=1, direction="CW", pulseWidth=5E-6):
         """Move the stepper motor by a given number of revolutions or steps in the specified direction."""
-        self._validate_state(require_enabled=True, require_calibrated=True)
+        self._validate_state(require_calibrated=True)
 
         # Set microstepping mode
         self.microstep.set_mode(stepMode)
