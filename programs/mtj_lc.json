@@ -1,0 +1,4 @@
+{
+    "name": "mtj_lc",
+    "content": "move 1\r\npause 0.5\r\nmove 0.5\r\nend"
+}

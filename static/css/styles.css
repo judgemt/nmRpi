@@ -1,0 +1,28 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+nav ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin-right: 10px;
+}
+
+.container {
+    margin-top: 20px;
+}
+
+.top-right-buttons {
+    position: absolute; /* Position the buttons relative to the nearest positioned parent */
+    top: 20px; /* Distance from the top */
+    right: 20px; /* Distance from the right */
+    display: flex; /* Use flexbox for alignment */
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 10px; /* Add spacing between buttons */
+    z-index: 1000; /* Ensure buttons appear above other elements */
+    pointer-events: auto; /* Ensure buttons are clickable even if other elements overlap */
+}

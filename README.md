@@ -1,2 +1,1 @@
-# learning_gpio
-for rpi
+Developing an app to control a syringe pump. 

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Run Program</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    {% include 'navigation.html' %}
+    
+    <h1>Run Program</h1>
+    
+    <!-- Load Program Section -->
+    <h2>Load Program</h2>
+    <form id="loadProgramForm">
+        <label for="program_name">Select Program:</label>
+        <select id="program_name" name="program_name">
+            {% for program in programs %}
+                <option value="{{ program }}">{{ program }}</option>
+            {% endfor %}
+        </select>
+        <button type="button" onclick="loadProgram()">Load Program</button>
+    </form>
+    
+    <!-- Display Program Section -->
+    <h2>Program Content</h2>
+    <pre id="program_content"></pre>
+    
+    <!-- Run Program Section -->
+    <button id="runButton" onclick="startProgram()">Run Program</button>
+    <button id="pauseButton" onclick="pauseProgram()" style="display: none;">Pause</button>
+    <button id="resumeButton" onclick="resumeProgram()" style="display: none;">Resume</button>
+    <button id="stopButton" onclick="stopProgram()" style="display: none;">Stop</button>
+
+    <!-- Log Display Section -->
+    <h2>Execution Log</h2>
+    <ul id="log">
+        {% for entry in log %}
+            <li>{{ entry }}</li>
+        {% endfor %}
+    </ul>
+
+    <script>
+        function loadProgram() {
+            const programName = $("#program_name").val();
+            $.post("{{ url_for('load_program') }}", { program_name: programName }, function(data) {
+                $("#program_content").text(data.content);
+            });
+        }
+
+        function startProgram() {
+            const content = $("#program_content").text();
+            $.post("{{ url_for('start_program') }}", { program_content: content }, function() {
+                $("#runButton").hide();
+                $("#pauseButton, #stopButton").show();
+                updateLog();
+            });
+        }
+
+        function pauseProgram() {
+            $.post("{{ url_for('pause_program') }}", function() {
+                $("#pauseButton").hide();
+                $("#resumeButton").show();
+            });
+        }
+
+        function resumeProgram() {
+            $.post("{{ url_for('resume_program') }}", function() {
+                $("#resumeButton").hide();
+                $("#pauseButton").show();
+            });
+        }
+
+        function stopProgram() {
+            $.post("{{ url_for('stop_program') }}", function() {
+                // Reset buttons
+                $("#pauseButton, #resumeButton, #stopButton").hide();
+                $("#runButton").show();
+            });
+        }
+
+        // Automatically reset buttons when program ends
+        $(document).ready(function() {
+            const eventSource = new EventSource("{{ url_for('log_stream') }}");
+            eventSource.onmessage = function(event) {
+                if (event.data.includes("Program execution complete.")) {
+                    stopProgram();
+                }
+            };
+        });
+
+        function updateLog() {
+            // Poll for log updates (e.g., via AJAX if implemented to refresh log entries)
+        }
+    </script>
+</body>
+</html>

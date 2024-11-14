@@ -1,0 +1,4 @@
+{
+    "name": "pulses1",
+    "content": "pause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\npause 0.2\r\nmove 1 speed 1\r\nend"
+}

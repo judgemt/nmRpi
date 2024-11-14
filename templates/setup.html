@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Setup Pump</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    {% include 'navigation.html' %}
+    
+    <h1>Setup Pump Parameters</h1>
+    
+    <form action="{{ url_for('setup_pump') }}" method="post">
+        <label for="syringe_volume">Syringe Volume (mL):</label>
+        <input type="number" id="syringe_volume" name="syringe_volume" step="0.1" min="0" required value="{{ settings.syringe_volume }}">
+        
+        <label for="ml_per_rotation">mL per Rotation:</label>
+        <input type="number" id="ml_per_rotation" name="ml_per_rotation" step="0.1" min="0" required value="{{ settings.ml_per_rotation }}">
+        
+        <label for="step_mode">Step Mode:</label>
+        <select id="step_mode" name="step_mode">
+            <option value="full" {% if settings.step_mode == 'full' %}selected{% endif %}>Full</option>
+            <option value="half" {% if settings.step_mode == 'half' %}selected{% endif %}>Half</option>
+            <option value="quarter" {% if settings.step_mode == 'quarter' %}selected{% endif %}>Quarter</option>
+            <option value="eighth" {% if settings.step_mode == 'eighth' %}selected{% endif %}>Eighth</option>
+            <option value="sixteenth" {% if settings.step_mode == 'sixteenth' %}selected{% endif %}>Sixteenth</option>
+        </select>
+        
+        <label for="speed">Default Speed (rps):</label>
+        <input type="number" id="speed" name="speed" step="0.1" min="0" required value="{{ settings.speed }}">
+        
+        <button type="submit">Save Settings</button>
+    </form>
+    
+    <p><a href="{{ url_for('index') }}">Back to Control</a></p>
+</body>
+</html>
