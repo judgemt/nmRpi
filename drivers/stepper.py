@@ -10,12 +10,29 @@ class A4988:
     PIN_DIRECTION = "DIR"
     PIN_STEP = "STEP"
  
-    def __init__(self, config_file, auto_calibrate=False, speed=None, pulseWidth=None, motor_spr=200):
-        """Initialize stepper with GPIO pin mappings and microstep pins."""
+    def __init__(self, config_file, enable_pin, auto_calibrate=False, speed=None, pulseWidth=None, motor_spr=200):
+        """Initialize stepper with GPIO pin mappings and microstep pins.
+        
+        Args:
+            config_file: JSON file containing shared pin configurations
+            enable_pin: GPIO pin number for this specific driver's enable pin
+            auto_calibrate: Whether to auto-calibrate on initialization
+            speed: Speed setting for calibration
+            pulseWidth: Pulse width for stepping
+            motor_spr: Steps per revolution
+        """
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
+        
+        # Load shared pins configuration
         with open(config_file, 'r') as file:
             self.pins = json.load(file)
+            
+        # Override the enable pin with the specific one for this driver
+        self.pins[self.PIN_ENABLE] = {
+            "number": enable_pin,
+            "init": "HIGH"  # Start disabled
+        }
 
         self.stepDelay = None  # This will be dynamically calculated
         self.sleep_overhead = None  # To store the calibrated sleep overhead
@@ -70,27 +87,32 @@ class A4988:
         print(f"Set pin {pin_name} to {'HIGH' if state == GPIO.HIGH else 'LOW'}.")
 
     def setup_pins(self):
-        """Set up the GPIO pins."""
+        """Set up the GPIO pins, avoiding re-setup of shared pins if already configured."""
         try:
-            for pin_name, pin in self.pins.items():
-                print(f"Setting up {pin_name} pin at GPIO {pin['number']}")
-                GPIO.setup(pin['number'], GPIO.OUT)
-                initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
-                self.set_pin_state(pin_name, initial_state)
-
-                if pin_name == self.PIN_ENABLE:
-                    self.enabled = (initial_state == GPIO.LOW)
+            # Setup enable pin (unique to this driver)
+            enable_pin = self.pins[self.PIN_ENABLE]['number']
+            if GPIO.gpio_function(enable_pin) != GPIO.OUT:
+                GPIO.setup(enable_pin, GPIO.OUT)
+                GPIO.output(enable_pin, GPIO.HIGH)  # Start disabled
+            
+            # Setup shared pins only if they're not already configured
+            shared_pins = {k: v for k, v in self.pins.items() if k != self.PIN_ENABLE}
+            for pin_name, pin in shared_pins.items():
+                if GPIO.gpio_function(pin['number']) != GPIO.OUT:
+                    GPIO.setup(pin['number'], GPIO.OUT)
+                    initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
+                    GPIO.output(pin['number'], initial_state)
 
             self.microstep = Microstep(self.pins)
             self.pins_setup = True
+            self.enabled = False
             print("All pins set up successfully.")
 
         except Exception as e:
-            print(f"Error during pin setup: {e}. You may want to disconnect power to motor to avoid damage.")
+            print(f"Error during pin setup: {e}")
             self.pins_setup = False
             self.enabled = False
-            # Clean up GPIO resources only in case of failure
-            GPIO.cleanup()
+            # Don't cleanup GPIO here as other drivers might be using the shared pins
             
     def enable(self):
         """Enable the motor driver (ENABLE pin is active low)."""
