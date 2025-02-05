@@ -1,1 +1,1 @@
-{"name": "mtj_basic_1", "content": "SET SPEED 1.2\r\nMOVE 3\r\nPAUSE 2\r\nMOVE 1\r\nEND\r\n"}
+{"name": "MTJ_basic1", "content": "MOVE 1.2\r\nPAUSE 1\r\nMOVE 0.5\r\nEND"}
