@@ -1,8 +1,7 @@
 {
     "DIR": {"number": 27, "init": "LOW"},
-    "STEP": {"number": 26, "init": "LOW"},
-    "MS3": {"number": 23, "init": "LOW"},
-    "MS2": {"number": 22, "init": "LOW"},
-    "MS1": {"number": 21, "init": "LOW"},
-    "ENABLE": {"number": 20, "init": "HIGH"}
-}
+    "STEP": {"number": 29, "init": "LOW"},
+    "MS3": {"number": 31, "init": "LOW"},
+    "MS2": {"number": 33, "init": "LOW"},
+    "MS1": {"number": 35, "init": "LOW"}
+}   

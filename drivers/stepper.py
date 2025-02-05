@@ -22,7 +22,8 @@ class A4988:
             motor_spr: Steps per revolution
         """
         GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
+        # GPIO.setmode(GPIO.BCM)
+        GPIO.setmode(GPIO.BOARD)
         
         # Load shared pins configuration
         with open(config_file, 'r') as file:

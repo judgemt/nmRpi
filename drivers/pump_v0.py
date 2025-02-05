@@ -31,12 +31,18 @@ class Pump:
     def enable(self):
         """Enable this pump and disable all others."""
         if Pump._active_pump is not None and Pump._active_pump != self:
+            print("\n----- DEACTIVATING PREVIOUS PUMP -----")
             Pump._active_pump.disable()
+        
+        print("\n========================================")
+        print(f">>>>> ACTIVATING PUMP {id(self)} <<<<<")
+        print("========================================")
         
         self.motor.enable()
         self.enabled = True
         Pump._active_pump = self
-        print(f"Pump enabled. Current position: {self.current_position:.2%} drawn")
+        print(f"Current position: {self.current_position:.2%} drawn")
+        print("----------------------------------------\n")
 
     def disable(self):
         """Disable this pump."""
