@@ -92,17 +92,15 @@ class A4988:
         try:
             # Setup enable pin (unique to this driver)
             enable_pin = self.pins[self.PIN_ENABLE]['number']
-            if GPIO.gpio_function(enable_pin) != GPIO.OUT:
-                GPIO.setup(enable_pin, GPIO.OUT)
-                GPIO.output(enable_pin, GPIO.HIGH)  # Start disabled
+            GPIO.setup(enable_pin, GPIO.OUT)
+            GPIO.output(enable_pin, GPIO.HIGH)  # Start disabled
             
             # Setup shared pins only if they're not already configured
             shared_pins = {k: v for k, v in self.pins.items() if k != self.PIN_ENABLE}
             for pin_name, pin in shared_pins.items():
-                if GPIO.gpio_function(pin['number']) != GPIO.OUT:
-                    GPIO.setup(pin['number'], GPIO.OUT)
-                    initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
-                    GPIO.output(pin['number'], initial_state)
+                GPIO.setup(pin['number'], GPIO.OUT)
+                initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
+                GPIO.output(pin['number'], initial_state)
 
             self.microstep = Microstep(self.pins)
             self.pins_setup = True
