@@ -26,10 +26,10 @@ GPIO.setmode(GPIO.BOARD)
 # Read pinmap
 with open(config_file, 'r') as file:
     pins = json.load(file)
-    print(pins)
+    # print(pins)
     if pins is not None:
         print('pin configurations loaded:')
-        print(json.dumps(pins, indent=4))
+        # print(json.dumps(pins, indent=4))
     else:
         print('pin configurations failed to load')
         exit(1)
@@ -42,32 +42,58 @@ try:
 except: 
     print(f'Error: Enable pin setup failure: {enable_pin}')
 
+def pulse_step(step_pin, n_steps, microseconds_high=10, microseconds_low=10):
+    
+    # Generate the list of pulses
+    pulses = []
+    
+    for step in range(n_steps):
+        pulses.append(pigpio.pulse(1<<step_pin, 0,              microseconds_high))
+        pulses.append(pigpio.pulse(0,           1<<step_pin,    microseconds_low))
+
+    # Turn into a pigpio waveform
+    pi.wave_clear()             # just in case something is running
+    pi.wave_add_generic(pulses) # make the wave from the pulses
+    wave_id = pi.wave_create()  # 
+
+    # Send the wave to hardware
+    pi.wave_send_once(wave_id)  # send it
+
+    # Give the wave time to run
+    while pi.wave_tx_busy():    
+        time.sleep(0.001)       # check in every millisecond
+
+    pi.wave_clear() # Clean up waveform
+
 def setup_pin(pin, pin_name):
     try:
-        initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
-        GPIO.setup(pin['number'], GPIO.OUT)
-        GPIO.output(pin['number'], initial_state)
-        print(f'{pin_name} pin set up at board pin:',pin['number'])
+        if pin_name == "STEP":
+            print('Setting STEP pin up with pigpio')
+            step_pin = pin['number']
+            print(step_pin)
+            pi.set_mode(step_pin, pigpio.OUTPUT)
+            print('mode set..')
+            pi.set_pull_up_down(step_pin, pigpio.PUD_DOWN)
+            print('pulldown set..')
+        else:
+            initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
+            GPIO.setup(pin['number'], GPIO.OUT)
+            GPIO.output(pin['number'], initial_state)
+            print(f'{pin_name} pin set up at board pin:',pin['number'])
         
     except: 
         print(f'{pin_name} failed setup')
-
-for pin_name, pin in pins.items():
-    setup_pin(pin, pin_name)
     
+for pin_name, pin in pins.items():
+    setup_pin(pin, pin_name) 
 
+# print(pin['STEP']['number'])
+# pulse_step(pin['STEP']['number'])
 
 #### Do Stuff #####
 
 # Turn driver on
 # GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
-
-# Loop a little
-# for i in range(200):
-#     pi.write(step_pin, 1)
-#     pi.time_sleep(0.0001)
-#     pi.write(step_pin, 0)
-#     pi.time_sleep(0.0001)
 
 # # Shutdown
 GPIO.cleanup()
