@@ -1,7 +1,7 @@
 {
-    "DIR": {"number": 27, "init": "LOW"},
-    "STEP": {"number": 29, "init": "LOW"},
-    "MS3": {"number": 31, "init": "LOW"},
-    "MS2": {"number": 33, "init": "LOW"},
-    "MS1": {"number": 35, "init": "LOW"}
+    "DIR": {"number": 29, "init": "LOW"},
+    "STEP": {"number": 31, "init": "LOW"},
+    "MS3": {"number": 33, "init": "LOW"},
+    "MS2": {"number": 35, "init": "LOW"},
+    "MS1": {"number": 37, "init": "LOW"}
 }   
