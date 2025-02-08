@@ -3,6 +3,7 @@ import subprocess
 import time
 import json 
 import pigpio
+from utils import Microstep
 
 config_file = 'config/pin_map.json'
 enable_pin = 21
@@ -42,14 +43,17 @@ try:
 except: 
     print(f'Error: Enable pin setup failure: {enable_pin}')
 
-def pulse_step(step_pin, n_steps, microseconds_high=10, microseconds_low=10):
+def pulse_step(step_pin_board, n_steps, microseconds_high=10, microseconds_low=10):
     
     # Generate the list of pulses
     pulses = []
     
+    step_pin_bcm = BOARD_TO_BCM[step_pin_board]
     for step in range(n_steps):
-        pulses.append(pigpio.pulse(1<<step_pin, 0,              microseconds_high))
-        pulses.append(pigpio.pulse(0,           1<<step_pin,    microseconds_low))
+        print('on')
+        pulses.append(pigpio.pulse(1<<step_pin_bcm, 0,              microseconds_high))
+        print('off')
+        pulses.append(pigpio.pulse(0,           1<<step_pin_bcm,    microseconds_low))
 
     # Turn into a pigpio waveform
     pi.wave_clear()             # just in case something is running
@@ -65,16 +69,25 @@ def pulse_step(step_pin, n_steps, microseconds_high=10, microseconds_low=10):
 
     pi.wave_clear() # Clean up waveform
 
+BOARD_TO_BCM = {
+    3: 2,  5: 3,  7: 4,  8: 14,  10: 15,
+    11: 17, 12: 18, 13: 27, 15: 22, 16: 23,
+    18: 24, 19: 10, 21: 9,  22: 25, 23: 11,
+    24: 8,  26: 7,  29: 5,  31: 6,  32: 12,
+    33: 13, 35: 19, 36: 16, 37: 26, 38: 20,
+    40: 21
+}
+
 def setup_pin(pin, pin_name):
     try:
         if pin_name == "STEP":
-            print('Setting STEP pin up with pigpio')
-            step_pin = pin['number']
-            print(step_pin)
+            step_pin = BOARD_TO_BCM[pin['number']] # pigpio assumes BCM numbering
+            print('Setting STEP pin on BCM pin ',step_pin,' up with pigpio')
             pi.set_mode(step_pin, pigpio.OUTPUT)
-            print('mode set..')
+            # print('mode set..')
             pi.set_pull_up_down(step_pin, pigpio.PUD_DOWN)
-            print('pulldown set..')
+            # print('pulldown set..')
+            print('STEP pin was set with internal pulldown.')
         else:
             initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
             GPIO.setup(pin['number'], GPIO.OUT)
@@ -87,15 +100,22 @@ def setup_pin(pin, pin_name):
 for pin_name, pin in pins.items():
     setup_pin(pin, pin_name) 
 
-# print(pin['STEP']['number'])
-# pulse_step(pin['STEP']['number'])
-
 #### Do Stuff #####
 
 # Turn driver on
-# GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
 
-# # Shutdown
-GPIO.cleanup()
-pi.stop()
+microstep = Microstep(pins, mode = 'full')
+
+while True:
+    try: 
+        GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
+        pulse_step(pins['STEP']['number'], 100) # this uses board numbering
+
+    except:
+        GPIO.output(enable_pin, GPIO.HIGH) # 
+        # # Shutdown
+        GPIO.cleanup()
+        pi.stop()
+        break
+
  
