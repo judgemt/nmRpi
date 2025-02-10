@@ -23,6 +23,14 @@ else:
 
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BOARD)
+BOARD_TO_BCM = {
+    3: 2,  5: 3,  7: 4,  8: 14,  10: 15,
+    11: 17, 12: 18, 13: 27, 15: 22, 16: 23,
+    18: 24, 19: 10, 21: 9,  22: 25, 23: 11,
+    24: 8,  26: 7,  29: 5,  31: 6,  32: 12,
+    33: 13, 35: 19, 36: 16, 37: 26, 38: 20,
+    40: 21
+}
 
 # Read pinmap
 with open(config_file, 'r') as file:
@@ -49,16 +57,20 @@ def pulse_step(step_pin_board, n_steps, microseconds_high=10, microseconds_low=1
     pulses = []
     
     step_pin_bcm = BOARD_TO_BCM[step_pin_board]
+    print('generating pulse:')
     for step in range(n_steps):
-        print('on')
-        pulses.append(pigpio.pulse(1<<step_pin_bcm, 0,              microseconds_high))
-        print('off')
-        pulses.append(pigpio.pulse(0,           1<<step_pin_bcm,    microseconds_low))
+        pulses.append(pigpio.pulse(1<<step_pin_bcm, 0,              int(microseconds_high)))
+        pulses.append(pigpio.pulse(0,           1<<step_pin_bcm,    int(microseconds_low)))
+
+    # Visualize
+
+    pi.exceptions = True
 
     # Turn into a pigpio waveform
     pi.wave_clear()             # just in case something is running
+    time.sleep(0.1)
     pi.wave_add_generic(pulses) # make the wave from the pulses
-    wave_id = pi.wave_create()  # 
+    wave_id = pi.wave_create()
 
     # Send the wave to hardware
     pi.wave_send_once(wave_id)  # send it
@@ -68,15 +80,6 @@ def pulse_step(step_pin_board, n_steps, microseconds_high=10, microseconds_low=1
         time.sleep(0.001)       # check in every millisecond
 
     pi.wave_clear() # Clean up waveform
-
-BOARD_TO_BCM = {
-    3: 2,  5: 3,  7: 4,  8: 14,  10: 15,
-    11: 17, 12: 18, 13: 27, 15: 22, 16: 23,
-    18: 24, 19: 10, 21: 9,  22: 25, 23: 11,
-    24: 8,  26: 7,  29: 5,  31: 6,  32: 12,
-    33: 13, 35: 19, 36: 16, 37: 26, 38: 20,
-    40: 21
-}
 
 def setup_pin(pin, pin_name):
     try:
@@ -106,16 +109,24 @@ for pin_name, pin in pins.items():
 
 microstep = Microstep(pins, mode = 'full')
 
-while True:
-    try: 
-        GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
-        pulse_step(pins['STEP']['number'], 100) # this uses board numbering
+try: 
+    GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
+    print('enable pin activated')
+    pulse_step(pins['STEP']['number'], 
+                n_steps=50, 
+                microseconds_high=10, 
+                microseconds_low=1e5) # this uses board numbering
+    print('did the steps')
 
-    except:
-        GPIO.output(enable_pin, GPIO.HIGH) # 
-        # # Shutdown
-        GPIO.cleanup()
-        pi.stop()
-        break
+except Exception as e:
+    print(f"Error: {e}")
+    # GPIO.output(enable_pin, GPIO.HIGH) # 
+    # # # Shutdown
+    # GPIO.cleanup()
+    # pi.stop()
+    print('fail')
 
- 
+GPIO.output(enable_pin, GPIO.HIGH) # 
+# # Shutdown
+GPIO.cleanup()
+pi.stop()
