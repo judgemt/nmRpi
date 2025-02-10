@@ -76,7 +76,7 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
         raise ValueError("n must be greater than 0.")
     
     step_pin_bcm = BOARD_TO_BCM[step_pin_board]
-    print(f'microsteps: {n}')
+    # print(f'microsteps: {n}')
     pulses = []
     for step in range(n):
         pulses.append(pigpio.pulse(1 << step_pin_bcm, 0, int(microseconds_high))) # HIGH
