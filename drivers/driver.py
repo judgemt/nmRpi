@@ -103,6 +103,23 @@ def setup_pin(pin, pin_name):
 for pin_name, pin in pins.items():
     setup_pin(pin, pin_name) 
 
+def cleanup_pins():
+    GPIO.output(enable_pin, GPIO.HIGH) # 
+    # # Shutdown
+    GPIO.cleanup()
+    pi.stop()
+
+def set_direction(direction):
+    if direction is "Clockwise":
+        GPIO.output(pins['DIR']['number'], GPIO.LOW)
+        print('Direction set to "Clockwise"')
+    elif direction is "Counterclockwise":
+        GPIO.output(pins['DIR']['number'], GPIO.HIGH)
+        print('Direction set to "Counterclockwise"')
+    else:
+        RuntimeError(f'Direction "{direction}" should be "Clockwise" or "Counterclockwise".')
+    
+
 #### Do Stuff #####
 
 # Turn driver on
@@ -110,23 +127,19 @@ for pin_name, pin in pins.items():
 microstep = Microstep(pins, mode = 'full')
 
 try: 
+
+    microstep.set_mode('sixteenth')
+    set_direction('Counterclockwise')
     GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
     print('enable pin activated')
     pulse_step(pins['STEP']['number'], 
-                n_steps=50, 
+                n_steps=50*microstep.get_factor(), 
                 microseconds_high=10, 
-                microseconds_low=1e5) # this uses board numbering
+                microseconds_low=1e4) # this uses board numbering
     print('did the steps')
 
 except Exception as e:
     print(f"Error: {e}")
-    # GPIO.output(enable_pin, GPIO.HIGH) # 
-    # # # Shutdown
-    # GPIO.cleanup()
-    # pi.stop()
-    print('fail')
+    cleanup_pins()
 
-GPIO.output(enable_pin, GPIO.HIGH) # 
-# # Shutdown
-GPIO.cleanup()
-pi.stop()
+cleanup_pins()
