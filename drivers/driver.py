@@ -5,7 +5,6 @@ import json
 import pigpio
 from utils import Microstep
 
-enable_pin = 21
 BOARD_TO_BCM = {
     3: 2,  5: 3,  7: 4,  8: 14,  10: 15,
     11: 17, 12: 18, 13: 27, 15: 22, 16: 23,
@@ -17,7 +16,7 @@ BOARD_TO_BCM = {
 
 def setup_pigpio():
     # pigpio setup
-    subprocess.run(["sudo","pigpio",], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # start daemon
+    subprocess.run(["sudo","pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # start daemon
     time.sleep(1) # wait to give daemon a chance to start
     pi = pigpio.pi() # connect to daemon
 
@@ -46,14 +45,19 @@ def load_pin_configurations(config_file='config/pin_map.json'):
             exit(1)
     return pins
 
-def set_enable_pin(enable_pin):
+def setup_enable_pin(pin):
     # Set enable pin to HIGH (disabled)
     try:
-        GPIO.setup(enable_pin, GPIO.OUT)
-        GPIO.output(enable_pin, GPIO.HIGH) # pull up so motor isn't actively holding
-        print('Enable pin set to HIGH')
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, GPIO.HIGH) # pull up so motor isn't actively holding
+        print(f'Enable pin {pin} set to HIGH')
     except: 
-        print(f'Error: Enable pin setup failure: {enable_pin}')
+        print(f'Error: Enable pin setup failure: {pin}')
+
+def setup_enable_pins(enable_pins):
+    # Set enable pin to HIGH (disabled)
+    for pin in enable_pins:
+        setup_enable_pin(pin)
 
 def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microseconds_low: int) -> list:
     """
@@ -72,7 +76,30 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
         raise ValueError("n must be greater than 0.")
     
     step_pin_bcm = BOARD_TO_BCM[step_pin_board]
+    print(f'number of steps: {n}')
+    pulses = []
+    for step in range(n):
+        pulses.append(pigpio.pulse(1 << step_pin_bcm, 0, int(microseconds_high))) # HIGH
+        pulses.append(pigpio.pulse(0, 1 << step_pin_bcm, int(microseconds_low)))   # LOW
+
+    return pulsesdef generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microseconds_low: int) -> list:
+    """
+    Generates a list of pigpio.pulse objects for stepping.
+
+    Args:
+        step_pin_board (int): BOARD pin number for the step signal.
+        n_steps (int): Number of pulses to generate.
+        microseconds_high (int): Time (µs) for HIGH pulse.
+        microseconds_low (int): Time (µs) for LOW pulse.
+
+    Returns:
+        list: A list of pigpio.pulse objects.
+    """
+    if n <= 0:
+        raise ValueError("n must be greater than 0.")
     
+    step_pin_bcm = BOARD_TO_BCM[step_pin_board]
+    print(f'number of steps: {n}')
     pulses = []
     for step in range(n):
         pulses.append(pigpio.pulse(1 << step_pin_bcm, 0, int(microseconds_high))) # HIGH
@@ -80,7 +107,7 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
 
     return pulses
 
-def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 10, microseconds_low: int = 10):
+def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 10, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1, batch_size=100):
     """
     Sends a sequence of pulses to step a motor using pigpio.
 
@@ -95,9 +122,66 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
         ValueError: If `n_steps` is <= 0.
     """
     pi.exceptions = True
-    
-    pulses = generate_pulses(step_pin_board, n_steps, microseconds_high, microseconds_low)
 
+    microseconds_low = (1/(steps_per_second*microstep_factor))*1e6 - microseconds_high
+    print(f'µs low: {microseconds_low}')
+    print(f'microsteps: {n_steps*microstep_factor}')
+
+    remaining_steps = n_steps*microstep_factor
+    wave_ids = []
+
+    while remaining_steps > 0:
+
+        batch = min(batch_size, remaining_steps)
+        pulses = generate_pulses(step_pin_board, n_steps*microstep_factor, microseconds_high, microseconds_low)
+
+        if not pulses:
+            raise RuntimeError("Failed to create pulses.")
+    
+        pi.wave_clear()               # Clear existing waveforms
+        pi.wave_add_generic(pulses)   # Add new waveform
+        wave_id = pi.wave_create()    # Create waveform
+
+        if wave_id < 0:
+            raise RuntimeError("Failed to create waveform.")
+
+        wave_ids.append(wave_id)
+        remaining_steps -= batch
+
+    print(f"Chaining {len(wave_ids)} waveforms together")
+    pi.wave_chain([255,0] + wave_ids)
+
+    while pi.wave_tx_busy():      # Wait for transmission to complete
+        time.sleep(0.001)
+
+    pi.wave_clear()               # Cleanup waveforms
+
+
+def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 10, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1):
+    """
+    Sends a sequence of pulses to step a motor using pigpio.
+
+    Args:
+        pi (pigpio.pi): Pigpio instance.
+        step_pin_board (int): BOARD pin number for stepping.
+        n_steps (int): Number of pulses to generate.
+        microseconds_high (int, optional): Time (µs) for HIGH pulse. Default is 10.
+        microseconds_low (int, optional): Time (µs) for LOW pulse. Default is 10.
+
+    Raises:
+        ValueError: If `n_steps` is <= 0.
+    """
+    pi.exceptions = True
+
+    microseconds_low = (1/(steps_per_second*microstep_factor))*1e6 - microseconds_high
+    print(f'µs low: {microseconds_low}')
+    print(f'microsteps: {n_steps*microstep_factor}')
+
+    pulses = generate_pulses(step_pin_board, n_steps*microstep_factor, microseconds_high, microseconds_low)
+
+    if pulses is None:
+        raise RuntimeError("Failed to create pulses.")
+    
     pi.wave_clear()               # Clear existing waveforms
     pi.wave_add_generic(pulses)   # Add new waveform
     wave_id = pi.wave_create()    # Create waveform
@@ -158,27 +242,81 @@ def set_direction(direction):
     else:
         RuntimeError(f'Direction "{direction}" should be "Clockwise" or "Counterclockwise".')
 
+def to_steps_per_second(rotations_per_second, steps_per_rotation):
+    return steps_per_rotation * rotations_per_second
+
+def enable(enable_pins, pin_index):
+    # Disable all others
+    disable_all(enable_pins)
+    
+    # Enable the desired pin
+    GPIO.output(enable_pins[pin_index], GPIO.LOW) # pull down *motor will actively hold*
+    print(f'Driver {pin_index} at physical pin {enable_pins[pin_index]} is enabled.')
+
+def disable_all(enable_pins):
+    # Disable all
+    for pin in enable_pins:
+        disable(pin)
+    print(f'Enable pins {enable_pins} were disabled')
+    
+def disable(pin):
+    GPIO.output(pin, GPIO.HIGH) # pull down *motor will actively hold*
 
 ## Setup ##############################
+
+enable_pins = [21,19]
+steps_per_second = 50
+steps_per_rotation = 200
+n_steps = 200
+  
+## Running ############################
 
 pins = load_pin_configurations()
 pi = setup_pigpio()    
 setup_gpio()
-set_enable_pin(enable_pin)
+setup_enable_pins(enable_pins)
 setup_pins(pins, pi)
-microstep = Microstep(pins, mode = 'full')
+microstep = Microstep(pins, mode = 'sixteenth')
 
 try: 
+    set_direction('Counterclockwise')   
 
-    microstep.set_mode('sixteenth')
-    set_direction('Counterclockwise')
-    GPIO.output(enable_pin, GPIO.LOW) # pull down *motor will actively hold*
-    print('enable pin activated')
+    enable(enable_pins, 0)
     pulse_step(pi,
-                pins['STEP']['number'], 
-                n_steps=50*microstep.get_factor(), 
-                microseconds_high=10, 
-                microseconds_low=1e4) # this uses board numbering
+                pins['STEP']['number'], # this uses board numbering
+                n_steps=n_steps, 
+                microseconds_high=10,
+                steps_per_second=steps_per_second,
+                microstep_factor = microstep.get_factor()) 
+    
+    time.sleep(1)
+
+    set_direction('Clockwise')   
+    pulse_step(pi,
+                pins['STEP']['number'], # this uses board numbering
+                n_steps=n_steps*microstep.get_factor(), 
+                microseconds_high=10,
+                steps_per_second=steps_per_second*microstep.get_factor())
+
+
+    set_direction('Counterclockwise')   
+    enable(enable_pins, 1)
+    pulse_step(pi,
+                pins['STEP']['number'], # this uses board numbering
+                n_steps=n_steps*microstep.get_factor(), 
+                microseconds_high=10,
+                steps_per_second=steps_per_second*microstep.get_factor()) 
+    
+    time.sleep(1)
+
+    set_direction('Clockwise')   
+    pulse_step(pi,
+                pins['STEP']['number'], # this uses board numbering
+                n_steps=n_steps*microstep.get_factor(), 
+                microseconds_high=10,
+                steps_per_second=steps_per_second*microstep.get_factor())
+
+    disable_all(enable_pins)
     print('steps complete')
 
 except Exception as e:
