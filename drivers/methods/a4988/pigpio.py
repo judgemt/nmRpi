@@ -1,6 +1,7 @@
 import pigpio
 import subprocess
 import time
+import functools
 
 def setup_pigpio():
     # pigpio setup
@@ -16,6 +17,15 @@ def setup_pigpio():
     
     return pi
     
+def require_valid_pi(func):
+    """Decorator to ensure pigpio instance is valid and connected."""
+    @functools.wraps(func)
+    def wrapper(pi, *args, **kwargs):
+        if not pi.connected:
+            raise RuntimeError(f"Error: Pigpio instance is not connected. Try 'sudo system status pigpiod' in Terminal.")
+        return func(pi, *args, **kwargs)
+    return wrapper
+
 def BCM_number(board_pin):
     bcmnum = {
         3: 2,  5: 3,  7: 4,  8: 14,  10: 15,
@@ -40,9 +50,12 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
     Returns:
         list: A list of pigpio.pulse objects.
     """
+
     if n <= 0:
         raise ValueError("n must be greater than 0.")
     
+
+
     step_pin_bcm = BCM_number(step_pin_board)
     # print(f'microsteps: {n}')
     pulses = []
@@ -52,6 +65,7 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
 
     return pulses
 
+@require_valid_pi
 def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 10, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1, batch_size=100):
     """
     Sends a sequence of pulses to step a motor using pigpio.
@@ -101,6 +115,7 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
 
     pi.wave_clear()               # Cleanup waveforms
 
+@require_valid_pi
 def setup_pigpio_pin(pi: pigpio.pi, pin, pin_name):
     try:
         if pin_name == "STEP":

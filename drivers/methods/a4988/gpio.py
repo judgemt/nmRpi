@@ -1,23 +1,28 @@
 import RPi.GPIO as GPIO
 import json
-from a4988.pigpio import setup_pigpio_pin
+from a4988.pigpio import setup_pigpio_pin, require_valid_pi as check_pi
 
 def setup_gpio():
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BOARD)
 
 def load_pin_configurations(config_file):
-    # Read pinmap
-    with open(config_file, 'r') as file:
-        pins = json.load(file)
-        # print(pins)
-        if pins is not None:
-            print('pin configurations loaded')
-            # print(json.dumps(pins, indent=4))p
-        else:
-            print('pin configurations failed to load')
-            exit(1)
-    return pins
+    try:
+        # Read pinmap
+        with open(config_file, 'r') as file:
+            pins = json.load(file)
+            print("Driver Pin Configurations:")
+            print(pins)
+            if pins is not None:
+                print('pin configurations loaded')
+                # print(json.dumps(pins, indent=4))p
+            else:
+                print('pin configurations failed to load')
+                exit(1)
+        return pins
+    except Exception as e:
+        print(f"Error in load_pin_configurations: {e}")
+        return None
 
 def setup_enable_pin(pin):
     # Set enable pin to HIGH (disabled)
@@ -29,10 +34,15 @@ def setup_enable_pin(pin):
         print(f'Error: Enable pin setup failure: {pin}')
 
 def setup_enable_pins(enable_pins):
-    # Set enable pin to HIGH (disabled)
-    for pin in enable_pins:
-        setup_enable_pin(pin)
-
+    try:
+        # Set enable pin to HIGH (disabled)
+        for pin in enable_pins:
+            setup_enable_pin(pin)
+    except Exception as e:
+        print('Error during setup_enable_pins: {e}.')
+        print('Check enable pin assignments and/or GPIO status.')
+        exit(1)
+        
 def setup_gpio_pin(pin, pin_name):
     try:
         initial_state = GPIO.LOW if pin['init'] == "LOW" else GPIO.HIGH
@@ -43,7 +53,8 @@ def setup_gpio_pin(pin, pin_name):
     except: 
         print(f'{pin_name} failed setup')
 
-def setup_pins(pins, pi):
+def setup_shared_pins(pins, pi):
+    setup_gpio()
     for pin_name, pin in pins.items():
         if pin_name == "STEP":
             setup_pigpio_pin(pi, pin, pin_name)
@@ -51,6 +62,7 @@ def setup_pins(pins, pi):
             setup_gpio_pin(pin, pin_name)
     print("Pin setup complete")
 
+@check_pi
 def cleanup_pins(pi):
     GPIO.cleanup()
     pi.stop()
