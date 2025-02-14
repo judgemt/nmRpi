@@ -13,7 +13,7 @@ class A4988:
 
         self.pins_shared = load_pin_configurations(config_file)
         self.pins_enable = enable_pins
-        self.relative_position = 0 # in full steps
+        self.relative_position = [0]*len(self.pins_enable) # in full steps
         self.steps_per_rotation = motor_spr
         self.steps_per_second = speed
         self.direction = 'Counterclockwise'
@@ -59,17 +59,31 @@ class A4988:
     def set_step_mode(self, step_mode='sixteenth'):
         self.microstep.set_mode(step_mode)
 
-    def update_position(self, steps):
-        direction = self.get_direction()
-        if direction == "Clockwise":
-            self.relative_position -= steps
-        elif direction == "Counterclockwise":
-            self.relative_position += steps
-        else:
-            raise RuntimeError('Cannot update position if direction is not define.')
+    def update_position(self, driver_number=None, steps=None):
+        """Update relative position of a specific driver."""
+        # Ensure driver_number is valid
+        if driver_number is None or driver_number < 0 or driver_number >= len(self.relative_position):
+            raise ValueError(f"Invalid driver_number: {driver_number}")
 
-    def get_position(self):
-        return self.relative_position
+        # Ensure steps is a valid integer
+        if steps is None or not isinstance(steps, (int, float)):
+            raise ValueError(f"Invalid steps value: {steps}")
+
+        direction = self.get_direction()
+
+        if direction == "Clockwise":
+            self.relative_position[driver_number] -= steps
+        elif direction == "Counterclockwise":
+            self.relative_position[driver_number] += steps
+        else:
+            raise RuntimeError("Cannot update position if direction is not defined.")
+
+    def get_position(self, driver_number):
+        """Retrieve relative position for a specific driver."""
+        if driver_number is None or driver_number < 0 or driver_number >= len(self.relative_position):
+            raise ValueError(f"Invalid driver_number: {driver_number}")
+
+        return self.relative_position[driver_number]
 
     def is_enabled(self):
         pass
@@ -83,31 +97,40 @@ class A4988:
    ## Running ############################
 
     def move(self, driver_number=None, direction='Counterclockwise', n_steps=None, 
-             steps_per_second=50,step_mode='sixteenth'):
-        
+            steps_per_second=50, step_mode='sixteenth'):
 
         if driver_number not in range(len(self.pins_enable)):
             self.disable_all()
             raise RuntimeError('A4988.move: enable pin index must be provided. Drivers disabled; skipping move command.')
 
-        print(f'Position: {self.get_position()}')
+        if n_steps is None or not isinstance(n_steps, (int, float)):
+            raise ValueError("A4988.move: n_steps must be provided and must be a number.")
 
-        try: 
+        print('\n------------------------------')
+        print(f'Driver {driver_number}:')
+        print(f'Position before move: {self.get_position(driver_number)}')
+
+        try:
             self.set_direction(direction)   
             self.enable(driver_number)
-            pulse_step(self.pi,
-                        self.pins_shared['STEP']['number'], # this uses board numbering
-                        n_steps=n_steps, 
-                        microseconds_high=10,
-                        steps_per_second=steps_per_second,
-                        microstep_factor = self.microstep.get_factor()) 
+
+            pulse_step(
+                self.pi,
+                self.pins_shared['STEP']['number'],  # Uses board numbering
+                n_steps=n_steps, 
+                microseconds_high=10,
+                steps_per_second=steps_per_second,
+                microstep_factor=self.microstep.get_factor()
+            )
             
             time.sleep(1)
 
-            self.disable_all()
-            self.update_position(n_steps)
-            print(f'Position: {self.get_position()}')
+            # ✅ Update position BEFORE disabling the driver
+            self.update_position(driver_number, n_steps)
 
+            self.disable_all()
+            print(f'Position after move: {self.get_position(driver_number)}')
+            print('------------------------------')
 
         except Exception as e:
             print(f"Error: {e}")
