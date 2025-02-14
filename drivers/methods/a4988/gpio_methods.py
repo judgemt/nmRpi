@@ -1,6 +1,6 @@
 import RPi.GPIO as GPIO
 import json
-from a4988.pigpio import setup_pigpio_pin, require_valid_pi as check_pi
+from .pigpio_methods import setup_pigpio_pin, require_valid_pi as check_pi
 
 def setup_gpio():
     GPIO.setwarnings(False)

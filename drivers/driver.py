@@ -1,5 +1,5 @@
-from methods.a4988 import *
-from utils import Microstep
+from drivers.methods.a4988 import *
+from drivers.utils import Microstep
 
 
 class A4988:
@@ -38,13 +38,12 @@ class A4988:
         return(self.steps_per_second)
 
     def set_direction(self, direction):
-        
-        if direction is "Clockwise":
-            pins = self.pins_shared
+        pins = self.pins_shared
+        if direction == "Clockwise":
             GPIO.output(pins['DIR']['number'], GPIO.LOW)
             self.direction = direction
             print('Direction set to "Clockwise"')
-        elif direction is "Counterclockwise":
+        elif direction == "Counterclockwise":
             GPIO.output(pins['DIR']['number'], GPIO.HIGH)
             self.direction = direction
             print('Direction set to "Counterclockwise"')
@@ -70,30 +69,32 @@ class A4988:
             raise RuntimeError('Cannot update position if direction is not define.')
 
     def get_position(self):
-        pass
+        return self.relative_position
 
     def is_enabled(self):
         pass
 
-    def enable(self, pin):
-        enable(self.pins_enable, pin)
+    def enable(self, driver_number):
+        enable(self.pins_enable, driver_number)
 
     def disable_all(self):
         disable(self.pins_enable)
 
    ## Running ############################
 
-    def move(self, pin=None, direction='Counterclockwise', n_steps=None, 
+    def move(self, driver_number=None, direction='Counterclockwise', n_steps=None, 
              steps_per_second=50,step_mode='sixteenth'):
         
-        if not pin:
+
+        if driver_number not in range(len(self.pins_enable)):
             self.disable_all()
-            raise RuntimeError('A4988.move: enable pin index must be provided. Skipping move command.')
-            
+            raise RuntimeError('A4988.move: enable pin index must be provided. Drivers disabled; skipping move command.')
+
+        print(f'Position: {self.get_position()}')
+
         try: 
             self.set_direction(direction)   
-
-            self.enable(0)
+            self.enable(driver_number)
             pulse_step(self.pi,
                         self.pins_shared['STEP']['number'], # this uses board numbering
                         n_steps=n_steps, 
@@ -104,8 +105,9 @@ class A4988:
             time.sleep(1)
 
             self.disable_all()
-            self.update_position(n_steps, direction)
-            print('steps complete')
+            self.update_position(n_steps)
+            print(f'Position: {self.get_position()}')
+
 
         except Exception as e:
             print(f"Error: {e}")

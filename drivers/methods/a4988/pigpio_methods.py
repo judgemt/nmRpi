@@ -119,7 +119,7 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
 def setup_pigpio_pin(pi: pigpio.pi, pin, pin_name):
     try:
         if pin_name == "STEP":
-            step_pin = BCM_number[pin['number']] # pigpio assumes BCM numbering
+            step_pin = BCM_number(pin['number']) # pigpio assumes BCM numbering
             print('Setting STEP pin on BCM pin ',step_pin,' up with pigpio')
             pi.set_mode(step_pin, pigpio.OUTPUT)
             # print('mode set..')

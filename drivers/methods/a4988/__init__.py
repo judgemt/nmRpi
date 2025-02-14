@@ -1,2 +1,2 @@
-from .gpio import *
-from .pigpio import *
+from .gpio_methods import *
+from .pigpio_methods import *
