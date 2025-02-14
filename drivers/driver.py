@@ -16,6 +16,7 @@ class A4988:
         self.relative_position = 0 # in full steps
         self.steps_per_rotation = motor_spr
         self.steps_per_second = speed
+        self.direction = 'Counterclockwise'
 
         # Setup pins
         self.pi = setup_pigpio()
@@ -37,23 +38,30 @@ class A4988:
         return(self.steps_per_second)
 
     def set_direction(self, direction):
+        
         if direction is "Clockwise":
             pins = self.pins_shared
             GPIO.output(pins['DIR']['number'], GPIO.LOW)
+            self.direction = direction
             print('Direction set to "Clockwise"')
         elif direction is "Counterclockwise":
             GPIO.output(pins['DIR']['number'], GPIO.HIGH)
+            self.direction = direction
             print('Direction set to "Counterclockwise"')
         else:
             RuntimeError(f'Direction "{direction}" should be "Clockwise" or "Counterclockwise".')
 
+    def get_direction(self):
+        return self.direction
+    
     def to_steps_per_second(rotations_per_second, steps_per_rotation):
         return steps_per_rotation * rotations_per_second
 
     def set_step_mode(self, step_mode='sixteenth'):
         self.microstep.set_mode(step_mode)
 
-    def update_position(self, steps, direction):
+    def update_position(self, steps):
+        direction = self.get_direction()
         if direction == "Clockwise":
             self.relative_position -= steps
         elif direction == "Counterclockwise":
@@ -68,59 +76,38 @@ class A4988:
         pass
 
     def enable(self, pin):
-        gpio.enable(self.pins_enable, pin)
+        enable(self.pins_enable, pin)
+
+    def disable_all(self):
+        disable(self.pins_enable)
 
    ## Running ############################
 
-    def move(self, direction='Counterclockwise', n_steps=None, 
+    def move(self, pin=None, direction='Counterclockwise', n_steps=None, 
              steps_per_second=50,step_mode='sixteenth'):
         
+        if not pin:
+            self.disable_all()
+            raise RuntimeError('A4988.move: enable pin index must be provided. Skipping move command.')
+            
         try: 
-            self.set_direction(self,'Counterclockwise')   
+            self.set_direction(direction)   
 
-            self.enable(enable_pins, 0)
-            pulse_step(pi,
-                        pins['STEP']['number'], # this uses board numbering
+            self.enable(0)
+            pulse_step(self.pi,
+                        self.pins_shared['STEP']['number'], # this uses board numbering
                         n_steps=n_steps, 
                         microseconds_high=10,
                         steps_per_second=steps_per_second,
-                        microstep_factor = microstep.get_factor()) 
+                        microstep_factor = self.microstep.get_factor()) 
             
             time.sleep(1)
 
-            set_direction('Clockwise')   
-            pulse_step(pi,
-                        pins['STEP']['number'], # this uses board numbering
-                        n_steps=n_steps*microstep.get_factor(), 
-                        microseconds_high=10,
-                        steps_per_second=steps_per_second*microstep.get_factor())
-
-
-            set_direction('Counterclockwise')   
-            enable(enable_pins, 1)
-            pulse_step(pi,
-                        pins['STEP']['number'], # this uses board numbering
-                        n_steps=n_steps*microstep.get_factor(), 
-                        microseconds_high=10,
-                        steps_per_second=steps_per_second*microstep.get_factor()) 
-            
-            time.sleep(1)
-
-            set_direction('Clockwise')   
-            pulse_step(pi,
-                        pins['STEP']['number'], # this uses board numbering
-                        n_steps=n_steps*microstep.get_factor(), 
-                        microseconds_high=10,
-                        steps_per_second=steps_per_second*microstep.get_factor())
-
-            disable_all(enable_pins)
+            self.disable_all()
+            self.update_position(n_steps, direction)
             print('steps complete')
 
         except Exception as e:
             print(f"Error: {e}")
-            cleanup_pins(pi)
+            self.disable_all()
             print('Driver inactive')
-            exit(1)
-
-    cleanup_pins(pi)
-    print('Driver inactive')
