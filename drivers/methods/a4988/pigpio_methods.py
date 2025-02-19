@@ -2,10 +2,9 @@ import pigpio
 import subprocess
 import time
 import functools
-import os
 
-def setup_pigpio():
-    # *** It is vital that pigpio process be monitored as they hang up.
+def shutdown_pigpio():
+    # It is vital that pigpio process be monitored because they hang up.
     # This leads to bizarre pulsing behavior and therefore stepping mishaps.
     # As far as I can tell, we need to not only stop any existing pigpio processes,
     # and do this in multiple ways, but also clear the lock file from any failed runs.
@@ -29,6 +28,10 @@ def setup_pigpio():
     print("Removing stale lock file...")
     subprocess.run(["sudo", "rm", "-f", "/var/run/pigpio.pid"])
     time.sleep(0.2)  # Ensure the file is gone before restarting
+
+def setup_pigpio():
+    # Ensure no previous pigpio instances are running on this Pi
+    shutdown_pigpio()
 
     print("Restarting Pigpio...")
     subprocess.run(["sudo", "systemctl", "restart", "pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
