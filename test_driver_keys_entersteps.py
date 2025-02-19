@@ -28,15 +28,15 @@ font = pg.font.Font(None, 30)
 
 # Input fields
 steps_box = pg.Rect(150, 80, 100, 40)  # Steps input box
-speed_box_push = pg.Rect(150, 130, 100, 40)  # Speed input box
-speed_box_draw = pg.Rect(150, 130, 100, 40)  # Speed input box
-update_button = pg.Rect(125, 200, 150, 50)  # Update button
+speed_box_draw = pg.Rect(150, 130, 100, 40)  # Draw Speed input box
+speed_box_push = pg.Rect(150, 180, 100, 40)  # Push Speed input box
+update_button = pg.Rect(125, 240, 150, 50)  # Update button
 
 # Input states
 active_input = None  # Tracks which input field is active
 steps_text = str(steps)  # Default step count
-push_speed_text = str(push_speed)  # Default speed
-draw_speed_text = str(draw_speed)  # Default speed
+push_speed_text = str(push_speed)  # Default push speed
+draw_speed_text = str(draw_speed)  # Default draw speed
 
 running = True
 while running:
@@ -45,7 +45,7 @@ while running:
     # Labels
     screen.blit(font.render("Steps:", True, BLACK), (50, 90))
     screen.blit(font.render("Draw Speed:", True, BLACK), (50, 140))
-    screen.blit(font.render("Push Speed:", True, BLACK), (50, 140))
+    screen.blit(font.render("Push Speed:", True, BLACK), (50, 190))  # Moved down
 
     # Draw input boxes
     pg.draw.rect(screen, BLACK if active_input == "steps" else GRAY, steps_box, 2)
@@ -70,11 +70,11 @@ while running:
         # Handle mouse clicks
         elif event.type == pg.MOUSEBUTTONDOWN:
             if steps_box.collidepoint(event.pos):
-                active_input = "steps"  # Activate steps input field
+                active_input = "steps"
             elif speed_box_draw.collidepoint(event.pos):
-                active_input = "push speed"  # Activate speed input field
+                active_input = "draw speed"
             elif speed_box_push.collidepoint(event.pos):
-                active_input = "draw speed"  # Activate speed input field
+                active_input = "push speed"
             elif update_button.collidepoint(event.pos):  # If update button clicked
                 steps = int(steps_text) if steps_text.isdigit() else steps
                 draw_speed = int(draw_speed_text) if draw_speed_text.isdigit() else draw_speed
@@ -116,5 +116,7 @@ while running:
             if active_driver is not None and direction is not None:
                 driver.move(driver_number=active_driver, direction=direction, n_steps=steps, steps_per_second=steps_per_second)
                 print(f"Driver {active_driver} moved {direction} for {steps} steps")
+
+print("Shutting down driver...")
 driver.shutdown()
 pg.quit()
