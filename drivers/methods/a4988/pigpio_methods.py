@@ -71,7 +71,7 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
     return pulses
 
 @require_valid_pi
-def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 500, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1, batch_size=50):
+def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 10, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1, batch_size=50):
     """
     Sends a sequence of pulses to step a motor using pigpio.
 
@@ -100,11 +100,11 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
     # Compute timing
     print(f'full steps per second: {steps_per_second}')
     step_period = 1/steps_per_second # seconds/full step
-    print(f's per step: {step_period}')
+    # print(f's per step: {step_period}')
     step_period_us = step_period * 1e6  # microseconds per step
-    print(f'us per step = {step_period_us}')
+    # print(f'us per step = {step_period_us}')
     microstep_period_us = step_period_us / microstep_factor
-    print(f'microseconds per microstep (1/16th step): {microstep_period_us}')
+    # print(f'microseconds per microstep (1/16th step): {microstep_period_us}')
     microseconds_low = max(10, microstep_period_us - microseconds_high)  #
 
     remaining_steps = microsteps
@@ -128,8 +128,8 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
         wave_ids.append(wave_id)
         remaining_steps -= batch
 
-    print(f"Chaining {len(wave_ids)} waveforms together")
-    print(f"Sending...")
+    # print(f"Chaining {len(wave_ids)} waveforms together")
+    # print(f"Sending...")
     start_time = time.time()
     # pi.wave_send_once(wave_ids[0])
     pi.wave_chain([255,0] + wave_ids)

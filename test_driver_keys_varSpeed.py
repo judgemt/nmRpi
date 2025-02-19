@@ -6,6 +6,9 @@ driver = A4988(config_file='./config/pin_map.json',enable_pins=[19,21], speed=50
 
 active_driver = None
 direction = None
+steps_per_second = 5
+draw_speed = 5
+push_speed = 20
 
 pg.init()
 screen = pg.display.set_mode((400,300))
@@ -30,10 +33,12 @@ while running:
                 # If key is arrow, set direction
                 if key == pg.K_RIGHT: # draw
                     direction = 'Counterclockwise'
-                    print(f"Direction: {direction}")
+                    steps_per_second = draw_speed
+                    print(f"Direction: {direction}, {steps_per_second} steps/second")
                 elif key == pg.K_LEFT: # push
                     direction = 'Clockwise'
-                    print(f"Direction: {direction}")
+                    steps_per_second = push_speed
+                    print(f"Direction: {direction}, {steps_per_second} steps/second")
                 elif key == pg.K_q: # exit
                     print("quitting")
                     active_driver = direction = None
@@ -43,7 +48,7 @@ while running:
 
                 # If a driver is active and direction is set, do a movement:
                 if active_driver is not None and direction is not None:
-                    driver.move(driver_number=active_driver, direction=direction, n_steps=100, steps_per_second=20)
+                    driver.move(driver_number=active_driver, direction=direction, n_steps=100, steps_per_second=steps_per_second)
                     print(f"Driver {active_driver} moved {direction}")
                     
                 else:
