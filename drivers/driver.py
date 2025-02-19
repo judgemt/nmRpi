@@ -135,3 +135,10 @@ class A4988:
             print(f"Error: {e}")
             self.disable_all()
             print('Driver inactive')
+
+    def shutdown(self):
+        self.disable_all()
+        cleanup_pins(self.pi)
+        print("All drivers inactivated")
+        shutdown_pigpio()
+        

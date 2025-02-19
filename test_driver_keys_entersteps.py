@@ -8,15 +8,15 @@ driver = A4988(config_file='./config/pin_map.json', enable_pins=[19, 21], speed=
 # Initial motor settings
 active_driver = None
 direction = None
-steps_per_second = 5
+steps = 1
+steps_per_second = 5  # Default speed
 draw_speed = 20
 push_speed = 10
-steps = 1
 
 # Pygame setup
 pg.init()
 screen = pg.display.set_mode((400, 300))
-pg.display.set_caption('Welcome')
+pg.display.set_caption('Motor Control')
 
 # Colors
 WHITE = (255, 255, 255)
@@ -24,93 +24,97 @@ BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 
 # Font
-font = pg.font.Font(None, 40)
+font = pg.font.Font(None, 30)
 
-# Input box
-input_box = pg.Rect(100, 120, 200, 50)
-text = ""
-input_active = False
+# Input fields
+steps_box = pg.Rect(150, 80, 100, 40)  # Steps input box
+speed_box_push = pg.Rect(150, 130, 100, 40)  # Speed input box
+speed_box_draw = pg.Rect(150, 130, 100, 40)  # Speed input box
+update_button = pg.Rect(125, 200, 150, 50)  # Update button
 
-# Button for triggering step input
-button_rect = pg.Rect(150, 200, 100, 40)
-button_color = GRAY
+# Input states
+active_input = None  # Tracks which input field is active
+steps_text = str(steps)  # Default step count
+push_speed_text = str(push_speed)  # Default speed
+draw_speed_text = str(draw_speed)  # Default speed
 
 running = True
 while running:
     screen.fill(WHITE)  # Clear screen
-    
-    # Draw button
-    pg.draw.rect(screen, button_color, button_rect)
-    button_text = font.render("Set Steps", True, BLACK)
-    screen.blit(button_text, (button_rect.x + 10, button_rect.y + 5))
 
-    # Draw input box if active
-    if input_active:
-        pg.draw.rect(screen, BLACK, input_box, 2)
-        input_surface = font.render(text, True, BLACK)
-        screen.blit(input_surface, (input_box.x + 10, input_box.y + 10))
+    # Labels
+    screen.blit(font.render("Steps:", True, BLACK), (50, 90))
+    screen.blit(font.render("Draw Speed:", True, BLACK), (50, 140))
+    screen.blit(font.render("Push Speed:", True, BLACK), (50, 140))
+
+    # Draw input boxes
+    pg.draw.rect(screen, BLACK if active_input == "steps" else GRAY, steps_box, 2)
+    pg.draw.rect(screen, BLACK if active_input == "draw speed" else GRAY, speed_box_draw, 2)
+    pg.draw.rect(screen, BLACK if active_input == "push speed" else GRAY, speed_box_push, 2)
+
+    # Render text inside input boxes
+    screen.blit(font.render(steps_text, True, BLACK), (steps_box.x + 10, steps_box.y + 10))
+    screen.blit(font.render(draw_speed_text, True, BLACK), (speed_box_draw.x + 10, speed_box_draw.y + 10))
+    screen.blit(font.render(push_speed_text, True, BLACK), (speed_box_push.x + 10, speed_box_push.y + 10))
+
+    # Draw update button
+    pg.draw.rect(screen, GRAY, update_button)
+    screen.blit(font.render("Update", True, BLACK), (update_button.x + 40, update_button.y + 10))
 
     pg.display.flip()  # Update display
 
     for event in pg.event.get():
         if event.type == pg.QUIT:
-            running = False  # Exit
+            running = False  # Exit loop
 
-        # Detect key press
-        elif event.type == pg.KEYDOWN:
-            key = event.key
-
-            # Trigger step input with 's'
-            if key == pg.K_s:
-                input_active = True
-                text = ""
-
-            # Handle number inputs
-            elif pg.K_0 <= key <= pg.K_9:
-                key_number = key - pg.K_0
-                if input_active:
-                    text += str(key_number)  # Collect digits for step input
-                elif key_number in driver_numbers:
-                    active_driver = key_number  # Select driver
-            
-            # Handle backspace
-            elif key == pg.K_BACKSPACE and input_active:
-                text = text[:-1]
-
-            # Submit step input with Enter
-            elif key == pg.K_RETURN and input_active:
-                if text.isdigit():
-                    steps = int(text)
-                    print(f"Steps set to: {steps}")
-                input_active = False  # Close input box
-            
-            # Handle movement keys
-            elif not input_active:
-                if key == pg.K_RIGHT:  # Draw
-                    direction = 'Counterclockwise'
-                    steps_per_second = draw_speed
-                    print(f"Direction: {direction}, {steps_per_second} steps/sec")
-                elif key == pg.K_LEFT:  # Push
-                    direction = 'Clockwise'
-                    steps_per_second = push_speed
-                    print(f"Direction: {direction}, {steps_per_second} steps/sec")
-                elif key == pg.K_q:  # Quit
-                    print("Quitting")
-                    active_driver = direction = None
-                    running = False
-
-                # Move the motor if conditions are met
-                if active_driver is not None and direction is not None:
-                    driver.move(driver_number=active_driver, direction=direction, n_steps=steps, steps_per_second=steps_per_second)
-                    print(f"Driver {active_driver} moved {direction} for {steps} steps")
-                else:
-                    print("Nothing happened")
-
-        # Detect mouse clicks
+        # Handle mouse clicks
         elif event.type == pg.MOUSEBUTTONDOWN:
-            if button_rect.collidepoint(event.pos):  # If button is clicked
-                input_active = True
-                text = ""
+            if steps_box.collidepoint(event.pos):
+                active_input = "steps"  # Activate steps input field
+            elif speed_box_draw.collidepoint(event.pos):
+                active_input = "push speed"  # Activate speed input field
+            elif speed_box_push.collidepoint(event.pos):
+                active_input = "draw speed"  # Activate speed input field
+            elif update_button.collidepoint(event.pos):  # If update button clicked
+                steps = int(steps_text) if steps_text.isdigit() else steps
+                draw_speed = int(draw_speed_text) if draw_speed_text.isdigit() else draw_speed
+                push_speed = int(push_speed_text) if push_speed_text.isdigit() else push_speed
+                print(f"Updated values - Steps: {steps}, Draw Speed: {draw_speed}, Push Speed: {push_speed}")
 
-print('Driver inactive')
+        # Handle keyboard input
+        elif event.type == pg.KEYDOWN:
+            if active_input:
+                if event.key == pg.K_BACKSPACE:  # Remove last character
+                    if active_input == "steps":
+                        steps_text = steps_text[:-1]
+                    elif active_input == "draw speed":
+                        draw_speed_text = draw_speed_text[:-1]                    
+                    elif active_input == "push speed":
+                        push_speed_text = push_speed_text[:-1]
+                elif event.unicode.isdigit():  # Append digit
+                    if active_input == "steps":
+                        steps_text += event.unicode
+                    elif active_input == "draw speed":
+                        draw_speed_text += event.unicode
+                    elif active_input == "push speed":
+                        push_speed_text += event.unicode
+
+            # Handle movement keys
+            elif event.key == pg.K_RIGHT:  # Draw
+                direction = 'Counterclockwise'
+                steps_per_second = draw_speed
+                print(f"Direction: {direction}, {steps_per_second} steps/sec")
+            elif event.key == pg.K_LEFT:  # Push
+                direction = 'Clockwise'
+                steps_per_second = push_speed
+                print(f"Direction: {direction}, {steps_per_second} steps/sec")
+            elif event.key == pg.K_q:  # Quit
+                print("Quitting")
+                running = False
+
+            # Move the motor if conditions are met
+            if active_driver is not None and direction is not None:
+                driver.move(driver_number=active_driver, direction=direction, n_steps=steps, steps_per_second=steps_per_second)
+                print(f"Driver {active_driver} moved {direction} for {steps} steps")
+driver.shutdown()
 pg.quit()
