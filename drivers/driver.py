@@ -6,8 +6,6 @@ class A4988:
     """Handles all A4988 drivers as a cluster to ensure only one is activated at a time."""
     def __init__(self, config_file='config/pin_map.json',enable_pins=None,speed=50,motor_spr=200):
         enable_pins = [21,19]
-        steps_per_second = 200
-        steps_per_rotation = 200
             
         # Setup driver info
 
@@ -28,11 +26,12 @@ class A4988:
         
     def set_speed(self, new_speed):
         # Check if new_speed is valid
-
+        
         # Print log of old and new speed
 
         # Set new speed
-        pass
+        self.steps_per_second = new_speed
+    
 
     def get_speed(self):
         return(self.steps_per_second)

@@ -57,6 +57,7 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
 
 
     step_pin_bcm = BCM_number(step_pin_board)
+    # print(f"Generating {n} pulses on BCM {step_pin_bcm} | HIGH: {microseconds_high} µs | LOW: {microseconds_low} µs")
     # print(f'microsteps: {n}')
     pulses = []
     for step in range(n):
@@ -66,7 +67,7 @@ def generate_pulses(step_pin_board: int, n: int, microseconds_high: int, microse
     return pulses
 
 @require_valid_pi
-def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 10, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1, batch_size=100):
+def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_high: int = 500, microseconds_low: int = 10, steps_per_second=50, microstep_factor=1, batch_size=50):
     """
     Sends a sequence of pulses to step a motor using pigpio.
 
@@ -82,11 +83,26 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
     """
     pi.exceptions = True
 
-    microseconds_low = (1/(steps_per_second*microstep_factor))*1e6 - microseconds_high
-    print(f'µs low: {microseconds_low}')
-    print(f'microsteps: {n_steps*microstep_factor}')
+    # Ensure valid step count
+    if n_steps <= 0:
+        raise ValueError("n_steps must be greater than 0.")
 
-    remaining_steps = n_steps*microstep_factor
+    # Round n_steps to the nearest microstep increment
+    rounded_steps = round(n_steps * microstep_factor) / microstep_factor
+    microsteps = int(rounded_steps * microstep_factor)  # Convert back to integer count
+
+    # Compute timing
+    print(f'full steps per second: {steps_per_second}')
+    step_period = 1/steps_per_second # seconds/full step
+    print(f's per step: {step_period}')
+    step_period_us = step_period * 1e6  # microseconds per step
+    print(f'us per step = {step_period_us}')
+    microstep_period_us = step_period_us / microstep_factor
+    microstep_period_us = microstep_period_us * 10
+    print(f'microseconds per microstep (1/16th step): {microstep_period_us}')
+    microseconds_low = max(10, microstep_period_us - microseconds_high)  #
+
+    remaining_steps = microsteps
     wave_ids = []
 
     while remaining_steps > 0:
@@ -108,12 +124,20 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
         remaining_steps -= batch
 
     print(f"Chaining {len(wave_ids)} waveforms together")
+    print(f"Sending...")
+    start_time = time.time()
+    # pi.wave_send_once(wave_ids[0])
     pi.wave_chain([255,0] + wave_ids)
 
     while pi.wave_tx_busy():      # Wait for transmission to complete
         time.sleep(0.001)
 
     pi.wave_clear()               # Cleanup waveforms
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    print(f'elapsed time: {time_elapsed}')
+    print(f'Target speed: {steps_per_second} steps/second')
+    print(f'Effective speed: {microsteps/microstep_factor/time_elapsed} steps/second')
 
 @require_valid_pi
 def setup_pigpio_pin(pi: pigpio.pi, pin, pin_name):
