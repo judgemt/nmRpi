@@ -4,7 +4,11 @@ import time
 import functools
 
 def setup_pigpio():
-    # pigpio setup
+    # Stop any running pigpio daemon
+    subprocess.run(["sudo", "killall", "pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.5)  # Wait before restarting
+
+    # pigpio daemon startup (or restart)
     subprocess.run(["sudo","pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # start daemon
     time.sleep(1) # wait to give daemon a chance to start
     pi = pigpio.pi() # connect to daemon
@@ -82,6 +86,8 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
         ValueError: If `n_steps` is <= 0.
     """
     pi.exceptions = True
+    pi.wave_clear()
+    time.sleep(0.1)
 
     # Ensure valid step count
     if n_steps <= 0:
@@ -98,7 +104,6 @@ def pulse_step(pi: pigpio.pi, step_pin_board: int, n_steps: int, microseconds_hi
     step_period_us = step_period * 1e6  # microseconds per step
     print(f'us per step = {step_period_us}')
     microstep_period_us = step_period_us / microstep_factor
-    microstep_period_us = microstep_period_us * 10
     print(f'microseconds per microstep (1/16th step): {microstep_period_us}')
     microseconds_low = max(10, microstep_period_us - microseconds_high)  #
 
