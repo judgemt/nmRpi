@@ -9,6 +9,7 @@ direction = None
 steps_per_second = 5
 draw_speed = 20
 push_speed = 10
+steps = 50
 
 pg.init()
 screen = pg.display.set_mode((400,300))
@@ -48,7 +49,7 @@ while running:
 
                 # If a driver is active and direction is set, do a movement:
                 if active_driver is not None and direction is not None:
-                    driver.move(driver_number=active_driver, direction=direction, n_steps=100, steps_per_second=steps_per_second)
+                    driver.move(driver_number=active_driver, direction=direction, n_steps=steps, steps_per_second=steps_per_second)
                     print(f"Driver {active_driver} moved {direction}")
                     
                 else:

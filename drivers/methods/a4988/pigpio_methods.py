@@ -2,15 +2,38 @@ import pigpio
 import subprocess
 import time
 import functools
+import os
 
 def setup_pigpio():
-    # Stop any running pigpio daemon
-    subprocess.run(["sudo", "killall", "pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(0.5)  # Wait before restarting
+    # *** It is vital that pigpio process be monitored as they hang up.
+    # This leads to bizarre pulsing behavior and therefore stepping mishaps.
+    # As far as I can tell, we need to not only stop any existing pigpio processes,
+    # and do this in multiple ways, but also clear the lock file from any failed runs.
+    # This is a process id file (PID) that gets created on pigpio startup.
+    # It is intended to serve as a blocker for starting new pigpio instances if
+    # one is running already. killall pigpiod doesn't allow for this cleanup to occur.
+    # 
 
-    # pigpio daemon startup (or restart)
-    subprocess.run(["sudo","pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # start daemon
-    time.sleep(1) # wait to give daemon a chance to start
+    print("Stopping any existing Pigpio instances...")
+    subprocess.run(["sudo", "systemctl", "stop", "pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.5)  # Give time for Pigpio to fully stop
+
+    print("Ensuring all Pigpio processes are killed...")
+    subprocess.run(["sudo", "killall", "-9", "pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # Double-check no Pigpio processes are left running
+    active_pigpio = subprocess.run(["pgrep", "pigpiod"], stdout=subprocess.PIPE).stdout.decode().strip()
+    if active_pigpio:
+        print("WARNING: Some Pigpio processes are still running:", active_pigpio)
+
+    print("Removing stale lock file...")
+    subprocess.run(["sudo", "rm", "-f", "/var/run/pigpio.pid"])
+    time.sleep(0.2)  # Ensure the file is gone before restarting
+
+    print("Restarting Pigpio...")
+    subprocess.run(["sudo", "systemctl", "restart", "pigpiod"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(1)  # Wait for the daemon to initialize
+
     pi = pigpio.pi() # connect to daemon
 
     if not pi.connected:
