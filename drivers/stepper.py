@@ -86,7 +86,7 @@ class A4988:
         
         GPIO.output(self.pins[pin_name]['number'], state)
         print(f"Set pin {pin_name} to {'HIGH' if state == GPIO.HIGH else 'LOW'}.")
-
+ 
     def setup_pins(self):
         """Set up the GPIO pins, avoiding re-setup of shared pins if already configured."""
         try:
